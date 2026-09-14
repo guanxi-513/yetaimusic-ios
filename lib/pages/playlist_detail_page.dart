@@ -1,11 +1,13 @@
 /// 歌单 / 榜单详情页：大封面 + 榜单名/简介 + 曲目列表（带排名序号）
 library;
 
+import 'dart:convert';
 import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import '../models/song.dart';
@@ -160,6 +162,37 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
       _loading = true;
       _error = null;
     });
+    // —— 缓存优先：先显示本地缓存（秒开），后台再拉网络刷新 ——
+    final cacheKey = 'playlist_cache_${widget.source}_${widget.id}';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString(cacheKey);
+      if (cached != null) {
+        final data = jsonDecode(cached) as Map<String, dynamic>;
+        final list = data['songs'] as List?;
+        if (list != null && list.isNotEmpty) {
+          final cachedSongs = list
+              .map((e) => Song.fromJson(e as Map<String, dynamic>))
+              .toList();
+          if (mounted) {
+            setState(() {
+              _songs = cachedSongs;
+              if ((data['name'] as String?)?.isNotEmpty == true) {
+                _name = data['name'] as String;
+              }
+              if ((data['cover'] as String?)?.isNotEmpty == true) {
+                _cover = data['cover'] as String;
+              }
+              _desc = (data['desc'] as String?) ?? '';
+              // 有缓存直接结束加载态（不转圈）
+              _loading = false;
+            });
+          }
+        }
+      }
+    } catch (_) {
+      // 缓存读取失败忽略，走正常网络加载
+    }
     try {
       if (widget.source == 'soda') {
         // 汽水详情返回创建者（creator），若没简介则显示"创建者：xxx"
@@ -182,6 +215,22 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
         if (r.name.isNotEmpty) _name = r.name;
         if (r.cover.isNotEmpty) _cover = r.cover;
         _desc = r.description;
+      }
+      // 网络成功 → 写入本地缓存（下次打开秒显）
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          cacheKey,
+          jsonEncode({
+            'name': _name,
+            'cover': _cover,
+            'desc': _desc,
+            'savedAt': DateTime.now().toIso8601String(),
+            'songs': _songs.map((e) => e.toJson()).toList(),
+          }),
+        );
+      } catch (_) {
+        // 缓存写入失败不影响使用
       }
       if (!mounted) return;
       setState(() {
@@ -210,6 +259,21 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
           );
           if (ok == true && mounted) Navigator.of(context).pop();
         });
+        return;
+      }
+      // 已有缓存内容：网络刷新失败时保留缓存列表，仅轻提示（不覆盖、不报全屏错误）
+      if (_songs.isNotEmpty) {
+        setState(() {
+          _loading = false;
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('刷新失败，当前显示缓存内容'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
         return;
       }
       setState(() {
