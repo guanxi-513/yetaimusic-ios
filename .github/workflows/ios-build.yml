@@ -29,6 +29,15 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Pod install (diagnostic)
+        # 显式跑 pod install，输出安装日志；确认 path_provider_foundation 是否被装上
+        run: |
+          cd ios
+          pod install 2>&1 | tee pod-install.log
+          echo "== path_provider pod status =="
+          grep -i "path_provider" pod-install.log || echo "NO path_provider in pod log"
+          ls Pods 2>/dev/null | grep -i path || echo "NO path_provider pod dir"
+
       - name: Xcode environment check
         run: |
           xcodebuild -version
@@ -52,6 +61,8 @@ jobs:
           cd ../../..
           echo "== final artifact =="
           ls -la build/ios/*.ipa
+          echo "== frameworks in app =="
+          ls build/ios/iphoneos/Runner.app/Frameworks/ | sort
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
