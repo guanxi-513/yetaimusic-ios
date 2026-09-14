@@ -7,8 +7,10 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -74,10 +76,38 @@ class _AppleMusicLoginPageState extends State<AppleMusicLoginPage> {
   ];
 
   /// 读取 media-user-token
-  /// 方案1（主）：JS 注入读 document.cookie（实测有效，getCookies 在部分设备读不到）
+  /// 方案0（iOS 专用，主）：原生 WKWebsiteDataStore 提完整 cookie（含 HttpOnly，Cider 同原理）
+  /// 方案1（跨平台，备）：JS 注入读 document.cookie（实测有效，getCookies 在部分设备读不到）
   /// 方案2（兜底）：原生 getCookies 多域扫描
   Future<({List<String> names, String? token, String? mutDetail})>
   _readToken() async {
+    // ---- 方案0：iOS 原生提取（能拿 HttpOnly，解决 iOS 读不到完整串）----
+    if (Platform.isIOS) {
+      try {
+        const channel = MethodChannel('liquid_music/apple_cookies');
+        final res = await channel
+            .invokeMethod<Map<dynamic, dynamic>>('getAllCookies');
+        if (res != null) {
+          final pairs = (res['pairs'] as List?)?.cast<String>() ?? [];
+          if (pairs.isNotEmpty) {
+            final cookieStr = pairs.join('; ');
+            final mutPresent = cookieStr.contains('media-user-token');
+            return (
+              names: ['[iOS native] 关键cookie ${pairs.length}个'],
+              token: mutPresent ? cookieStr : null,
+              mutDetail: mutPresent
+                  ? '【iOS原生提取】${pairs.length}个关键cookie: '
+                      '${pairs.map((e) => e.split('=').first).join(', ')}'
+                  : '【iOS原生提取】拿到了 ${pairs.length} 个cookie但缺 media-user-token: '
+                      '${pairs.map((e) => e.split('=').first).join(', ')}',
+            );
+          }
+        }
+      } catch (e) {
+        // 原生通道不可用，继续走方案1/2
+      }
+    }
+
     // ---- 方案1：JS 注入 ----
     try {
       final result = await _controller.runJavaScriptReturningResult('''
