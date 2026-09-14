@@ -29,22 +29,33 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build unsigned iOS IPA
-        # --no-codesign 跳过签名，产出未签名 IPA（用爱思助手/Sideloadly/AltStore 免费 Apple ID 自签安装）
+      - name: Xcode environment check
         run: |
-          flutter build ipa --release --no-codesign \
-            --build-name=1.5.0 --build-number=150
+          xcodebuild -version
+          flutter doctor -v | grep -A 2 "Xcode" || true
 
-      - name: List build outputs (diagnostic)
+      - name: Build unsigned iOS app
+        # flutter build ios 产出 .app（未签名），比 build ipa 更可控
         run: |
-          echo "== build/ios tree =="
-          find build/ios -maxdepth 3 -type f | head -50
-          echo "== ipa files =="
-          find build -name "*.ipa" -type f
+          flutter build ios --release --no-codesign \
+            --build-name=1.5.0 --build-number=150
+          echo "== iphoneos output =="
+          ls -la build/ios/iphoneos/ || true
+
+      - name: Package unsigned IPA
+        # 未签名 .app 手动打成 Payload 结构的 .ipa（爱思助手/Sideloadly 可直接自签）
+        run: |
+          mkdir -p build/ios/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -r ../liquid_music-unsigned.ipa Payload
+          cd ../../..
+          echo "== final artifact =="
+          ls -la build/ios/*.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-ios-unsigned
-          path: build/ios/ipa/*.ipa
+          path: build/ios/liquid_music-unsigned.ipa
           if-no-files-found: error
