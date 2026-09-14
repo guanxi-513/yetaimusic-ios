@@ -1,0 +1,39 @@
+name: iOS Build (unsigned IPA)
+
+# 触发方式：
+#   1. 手动：GitHub 仓库 → Actions → iOS Build → Run workflow
+#   2. 推送 ios-* 开头的 tag 自动触发
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'ios-*'
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build unsigned iOS IPA
+        # --no-codesign 跳过签名，产出未签名 IPA（用爱思助手/Sideloadly/AltStore 免费 Apple ID 自签安装）
+        run: |
+          flutter build ipa --release --no-codesign \
+            --build-name=1.5.0 --build-number=150
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-ios-unsigned
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: error

@@ -1,0 +1,159 @@
+import 'dart:async';
+
+import 'package:audio_service/audio_service.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:provider/provider.dart';
+
+import 'config.dart';
+import 'pages/home_page.dart';
+import 'services/api_service.dart';
+import 'services/audio_handler.dart';
+import 'services/media_notification_bridge.dart';
+import 'state/auth_state.dart';
+import 'state/player_state.dart';
+import 'state/ui_settings.dart';
+import 'widgets/mini_player_bar.dart';
+import 'widgets/spotify_background.dart';
+
+/// 全局状态（main 中创建，Provider.value 注入）
+late final PlayerState playerState;
+late final AuthState authState;
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 先加载用户保存过的音源地址（本地读取，很快）
+  await AppConfig.load();
+  // 加载本地持久化的登录 cookie（登录态跟随本设备，重启不丢失）
+  await ApiService.loadCookies();
+  // 加载 UI 设置（歌曲卡片毛玻璃开关等）
+  await loadUiSettings();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  // 高刷新率适配（90Hz/120Hz）：Android 默认锁 60Hz，这里请求设备最高模式。
+  // 不阻塞启动，失败（不支持的设备）静默忽略。
+  unawaited(setHighRefreshRate());
+
+  // 创建全局状态并接线（不依赖 audio_service）：
+  // - MediaNotificationBridge ← PlayerState（自定义通知：歌词 + 收藏按钮）
+  playerState = PlayerState();
+  authState = AuthState();
+  MediaNotificationBridge.init(playerState, loggedIn: () => authState.loggedIn);
+
+  // 先显示首屏；audio_service 在后台初始化，不再阻塞启动
+  runApp(const LiquidMusicApp());
+  unawaited(_initAudioService());
+}
+
+/// 请求设备支持的最高屏幕刷新率
+Future<void> setHighRefreshRate() async {
+  try {
+    final modes = await FlutterDisplayMode.supported;
+    if (modes.isEmpty) return;
+    // 选刷新率最高的模式
+    final best =
+        modes.reduce((a, b) => a.refreshRate > b.refreshRate ? a : b);
+    await FlutterDisplayMode.setPreferredMode(best);
+  } catch (_) {
+    // 部分设备/平台不支持，忽略
+  }
+}
+
+/// 后台初始化 audio_service（后台播放 + 系统媒体通知）。
+/// PlayerState 内部对 handler 判空，初始化完成前点播放不会崩溃。
+Future<void> _initAudioService() async {
+  final handler = await AudioService.init(
+    builder: () => LiquidAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.nini.liquid_music.channel.audio',
+      androidNotificationChannelName: '音乐播放',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
+    ),
+  );
+  playerState.attachAudioHandler(handler);
+}
+
+class LiquidMusicApp extends StatelessWidget {
+  const LiquidMusicApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: playerState),
+        ChangeNotifierProvider.value(value: authState),
+      ],
+      child: ListenableBuilder(
+        listenable: uiStyle,
+        builder: (context, _) => MaterialApp(
+          title: '液态音乐',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            useMaterial3: true,
+            brightness: isLight ? Brightness.light : Brightness.dark,
+            scaffoldBackgroundColor: Colors.transparent,
+            fontFamilyFallback: const [
+              'PingFang SC', 'HarmonyOS Sans', 'Microsoft YaHei', 'sans-serif'
+            ],
+            colorScheme: isLight
+                ? const ColorScheme.light(
+                    primary: Color(0xFF1A1B1C),
+                    secondary: Color(0xFFE05A8A),
+                    surface: Colors.transparent,
+                  )
+                : const ColorScheme.dark(
+                    primary: Colors.white,
+                    secondary: Color(0xFFE05A8A),
+                    surface: Colors.transparent,
+                  ),
+          ),
+          // 状态栏图标颜色：浅色主题用深色，深色主题用浅色
+          builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+            value: isLight
+                ? SystemUiOverlayStyle.dark
+                : SystemUiOverlayStyle.light,
+            child: child!,
+          ),
+          home: const _HomeShell(),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeShell extends StatelessWidget {
+  const _HomeShell();
+
+  @override
+  Widget build(BuildContext context) {
+    return SpotifyBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        // 底部迷你播放条改为 Stack 悬浮层：胶囊两侧透出底下列表内容
+        body: Stack(
+          children: [
+            // 列表铺满全屏，悬浮胶囊盖在其上，四周均透出列表内容
+            const Positioned.fill(child: HomePage()),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: MiniPlayerBar(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
