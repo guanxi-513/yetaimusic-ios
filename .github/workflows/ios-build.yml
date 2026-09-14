@@ -22,6 +22,10 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Force CocoaPods (disable Swift Package Manager)
+        # Flutter 3.44 默认 SPM；本项目插件(just_audio/audio_service等)走 CocoaPods 最稳定
+        run: flutter config --no-enable-swift-package-manager
+
       - name: Flutter pub get
         run: flutter pub get
 
@@ -30,6 +34,13 @@ jobs:
         run: |
           flutter build ipa --release --no-codesign \
             --build-name=1.5.0 --build-number=150
+
+      - name: List build outputs (diagnostic)
+        run: |
+          echo "== build/ios tree =="
+          find build/ios -maxdepth 3 -type f | head -50
+          echo "== ipa files =="
+          find build -name "*.ipa" -type f
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
