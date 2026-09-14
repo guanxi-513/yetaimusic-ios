@@ -29,14 +29,19 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Pod install (diagnostic)
-        # 显式跑 pod install，输出安装日志；确认 path_provider_foundation 是否被装上
+      - name: Pod install (clean, diagnostic)
+        # 清掉旧 pod 状态后全新安装，保证所有插件都被打进去；输出完整日志
         run: |
           cd ios
+          pod deintegrate || true
+          rm -rf Pods Podfile.lock
           pod install 2>&1 | tee pod-install.log
-          echo "== path_provider pod status =="
-          grep -i "path_provider" pod-install.log || echo "NO path_provider in pod log"
-          ls Pods 2>/dev/null | grep -i path || echo "NO path_provider pod dir"
+          echo "== pod log tail =="
+          tail -30 pod-install.log
+          echo "== installed plugin pods =="
+          ls Pods 2>/dev/null | grep -iE "path_provider|audio|just_audio|webview|sqflite|shared" || true
+          echo "== EXIT_CHECK =="
+          grep -c "Pod installation complete" pod-install.log || echo "POD_INSTALL_INCOMPLETE"
 
       - name: Xcode environment check
         run: |

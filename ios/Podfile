@@ -1,5 +1,5 @@
 # 由 iOS 构建流程使用：Flutter 3.44 默认 SPM，此处显式走 CocoaPods 保证插件兼容
-platform :ios, '13.0'
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
