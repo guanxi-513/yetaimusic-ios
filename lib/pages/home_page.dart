@@ -11,6 +11,7 @@ import '../state/player_state.dart';
 import '../state/ui_settings.dart';
 import 'apple_music_login_page.dart';
 import 'charts_page.dart';
+import 'developer_settings_page.dart';
 import 'login_dialog.dart';
 import 'playlists_page.dart';
 import 'recommend_view.dart';
@@ -373,6 +374,27 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 onChanged: setSongCardBlur,
               ),
             ),
+            Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+            // 与其他应用同时播放（音频焦点共存）
+            ValueListenableBuilder<bool>(
+              valueListenable: keepPlayingWithOtherApps,
+              builder: (_, keep, __) => SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  '与其他应用同时播放',
+                  style: TextStyle(color: fgPrimary, fontSize: 14),
+                ),
+                subtitle: Text(
+                  '开启后打开抖音等应用时音乐不暂停，两边同时出声',
+                  style: TextStyle(color: fgTertiary, fontSize: 11),
+                ),
+                value: keep,
+                activeTrackColor: Color(0xFF1DB954),
+                activeThumbColor: fgPrimary,
+                inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                onChanged: setKeepPlayingWithOtherApps,
+              ),
+            ),
             // 过渡动画三级设置入口
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -392,6 +414,29 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const TransitionSettingsPage(),
+                  ),
+                );
+              },
+            ),
+            // 开发者设置入口
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                '开发者设置',
+                style: TextStyle(color: fgPrimary, fontSize: 14),
+              ),
+              subtitle: Text(
+                '清理歌曲缓存 · 维护工具',
+                style: TextStyle(color: fgTertiary, fontSize: 11),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: fgPrimary.withOpacity(0.6),
+              ),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DeveloperSettingsPage(),
                   ),
                 );
               },

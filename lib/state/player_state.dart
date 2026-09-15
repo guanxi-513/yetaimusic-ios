@@ -334,6 +334,20 @@ class PlayerState extends ChangeNotifier {
       final cached = await MusicCache.cachedPath(song);
       if (cached != null) {
         await _player.setUrl(cached);
+        // 缓存时长校验：本地缓存明显短于歌曲真实时长
+        //（缓存 <40s 而真实 >40s）→ 判定为早期缓存的"30秒试听"片段，
+        // 删除缓存重新拉在线完整版，避免一直命中旧试听
+        final cachedDur = await _waitCachedDuration();
+        final realMs = song.duration;
+        if (cachedDur != null &&
+            realMs > 40000 &&
+            cachedDur.inMilliseconds < 40000) {
+          debugPrint(
+              '缓存为试听片段(${cachedDur.inSeconds}s)，删除并重新拉流：${song.name}');
+          await MusicCache.removeFile(song);
+          await _startCurrent(autoplay: autoplay);
+          return;
+        }
       } else {
         String playUrl;
         if (song.isBilibili) {
@@ -372,6 +386,7 @@ class PlayerState extends ChangeNotifier {
             mid: song.mid ?? '',
             name: song.name,
             artist: song.artists.isNotEmpty ? song.artists.join(' / ') : '',
+            album: song.album,
             duration: song.duration,
           );
           currentQuality = _qualityDesc(info.br, info.source, info.unblocked);
@@ -479,6 +494,17 @@ class PlayerState extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
+  }
+
+  /// 等待本地缓存文件时长就绪（本地文件秒级可得），3s 超时返回 null（保守不误删）
+  Future<Duration?> _waitCachedDuration() async {
+    try {
+      return await _player.durationStream
+          .firstWhere((d) => d != null && d > Duration.zero)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      return _player.duration;
+    }
   }
 
   /// 后台缓存音频到本地（失败不影响播放，由 MusicCache 内部兜底）

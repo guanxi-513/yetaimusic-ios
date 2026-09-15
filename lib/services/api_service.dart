@@ -716,14 +716,16 @@ class ApiService {
     );
   }
 
-  /// QQ 取流：/qq/song/url?mid=&name=&artist=&duration=
-  /// 必须传 name/artist/duration（后端靠它做 VIP 歌兜底匹配）。
+  /// QQ 取流：/qq/song/url?mid=&name=&artist=&album=&duration=
+  /// 必须传 name/artist/duration（后端靠它做 VIP 歌兜底匹配），
+  /// album 辅助同名多版本场景锁定正确版本。
   /// 返回 url + 实际音源 source（qq / bilibili / 解锁源），前端无感知换源。
   static Future<({String url, int? br, String source, bool unblocked})>
   qqSongUrl({
     required String mid,
     required String name,
     required String artist,
+    String album = '',
     int duration = 0,
     int br = 128,
   }) async {
@@ -731,6 +733,7 @@ class ApiService {
       'mid': mid,
       'name': name,
       'artist': artist,
+      'album': album,
       'duration': duration.toString(),
       'br': br.toString(),
     });

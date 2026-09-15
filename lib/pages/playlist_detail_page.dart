@@ -88,12 +88,17 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
     super.initState();
     _name = widget.title ?? '';
     _cover = widget.cover ?? '';
-    // 背景模糊过渡动画（600ms，略长于路由 400ms，让模糊在页面推入后继续"糊开"）
+    // 背景模糊过渡动画：与歌单打开动画同时触发，时长放长（1200ms）
+    // 整体渐进糊开，easeOutCubic：点击即快速糊开、尾部细腻收尾
     _bgBlurCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
     _bgBlur = CurvedAnimation(parent: _bgBlurCtrl, curve: Curves.easeOutCubic);
+    // 点击歌单的瞬间（initState 最早时机）立即启动模糊——
+    // 不等待缓存读取/内容加载/转场完成，点下去背景就开始糊开；
+    // 400ms 与页面转场同步：二级界面完全出现时模糊已基本到位，不慢半拍
+    _bgBlurCtrl.value = 0.15;
     _bgBlurCtrl.forward();
     _load();
   }
@@ -297,17 +302,17 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
             // 暗色透明 = 全透明（直接透出下层）
             // 极简暗色 = 纯黑；极简白色 = 暖白
             if (style == UiStyle.glass && !isLight)
-              // 模糊过渡：推入转场开启时 sigma 0→20 渐显（进入时下层清晰→糊开）；
-              // 关闭时保持恒定 blur 20（与旧行为一致）
+              // iOS 式整体渐进模糊：整个背景 sigma 0→20 均匀缓慢糊开
+              // （600ms easeOutCubic），无区域、无分界、无"中心亮区"；
+              // 遮罩同步 0→0.35 压暗。关闭走 route 反向转场直接退出
               ListenableBuilder(
                 listenable: Listenable.merge([_bgBlur, transitionPage]),
                 builder: (_, __) {
                   final t = transitionPage.value ? _bgBlur.value : 1.0;
                   return BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 20 * t, sigmaY: 20 * t),
-                    // 黑色遮罩透明度同步 0→0.35 渐显：打开瞬间下层完全清晰，
-                    // 再逐渐压暗+模糊，过渡才明显
-                    child: Container(color: Colors.black.withOpacity(0.35 * t)),
+                    child: Container(
+                        color: Colors.black.withOpacity(0.35 * t)),
                   );
                 },
               )
@@ -338,7 +343,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
       margin: EdgeInsets.fromLTRB(16, 10, 16, 6),
       child: Row(
         children: [
-          // 返回
+          // 返回（直接 pop：与系统返回键统一走 route 反向转场，干脆退出）
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
@@ -614,3 +619,4 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
+

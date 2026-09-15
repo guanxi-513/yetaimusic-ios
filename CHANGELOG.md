@@ -4,6 +4,23 @@
 
 ## v1.5.0（进行中）· Apple Music 第 5 音源接入 · 2026-09-13 19:00 起
 
+### 18:00 · 新增：与其他应用同时播放（音频焦点共存）· 09-15
+- 设置页新增「与其他应用同时播放」开关：开启后打开抖音等抢占音频焦点的应用时，音乐**不暂停、音量不变**，两边同时出声
+- Android 原理：audio_session 焦点类型切换为 `gainTransientMayDuck`（共存型）；just_audio 对 media 用途收到的 duck 事件不降音量不暂停 → 实现真正同时播放；关闭时恢复默认（被抢焦点暂停）
+- iOS 适配：AVAudioSession `playback + mixWithOthers` 混合播放，刷抖音音乐不中断
+- 开关持久化（重启保留），启动时自动应用配置
+
+### 16:00 · 歌单详情模糊过渡调优 + 关闭行为统一 · 09-15
+- **打开模糊动画最终方案**：整体渐进模糊——整层单 BackdropFilter，sigma 0→20 均匀缓慢糊开（600ms easeOutCubic，遮罩同步 0→0.35），无区域/无分界；
+  点击歌单瞬间即启动（initState），不依赖内容加载/转场。已否决方案：圆形 ShaderMask、硬边环 ClipPath、阶梯 4 层环（均"模糊感不足/不自然"）
+- **"我的歌单"入口转场去 FadeTransition**：淡入转场会掩盖模糊过渡（淡入期间页面半透明，模糊过程被遮住 → 观感"歌单打开后背景才瞬间模糊"）；
+  改为纯上滑(0.035)+缩放(0.97→1)，不透明转场，模糊过渡全程可见。"每日推荐"入口本就是纯 SlideTransition，行为正常未动
+- **关闭动画迭代（最终回退）**：曾做沉浸式关闭（550ms 下滑 12% 屏高 + 缩小 0.92 + 深淡出 + 模糊独立 750ms 倒放消散），
+  后用户确认要"干脆直接"→ **整套移除**自定义关闭动画与 PopScope 拦截，恢复简单 Stack + ListenableBuilder
+- **关闭行为统一**：左上角返回按钮改回 `Navigator.pop`（原来用 `maybePop` 走 PopScope 慢动画，与系统返回键不一致）；
+  现在返回按钮 / 系统返回键 / 返回手势三种关闭方式统一走 route 反向转场（150ms）直接退出，干脆利落
+- 反向转场 `reverseTransitionDuration` 维持 150ms（配合干脆退出，无回弹痕迹）
+
 ### 21:00 · Apple Music iOS 登录打通（方案3 原生 Cookie 提取）· 09-14
 - **iOS 原生通道打通**：`WKWebsiteDataStore.httpCookieStore.getAllCookies()` 提取完整 cookie（含 HttpOnly 的 media-user-token），
   提交长度从 len=246（仅裸 token）提升到 **len=1487（完整 7 键 cookie 串：itspod / pltvcid / pldfltcid / itua / media-user-token / acn1 / dslang）**

@@ -32,9 +32,15 @@ class MusicCache {
     return _dir!;
   }
 
+  /// 缓存文件名：`{songId}_{source}_{指纹}.{m4a|mp3}`
+  /// 指纹 = 歌名+歌手 哈希——同一 QQ 歌（同 mid）不同版本（原版/翻唱/错误匹配）
+  /// 缓存文件互相隔离，避免"换后端后旧错误缓存直接命中播放"的问题
   static String _fileName(Song song) {
     final ext = song.isBilibili ? 'm4a' : 'mp3';
-    return '${song.id}_${song.source}.$ext';
+    final fp =
+        (('${song.name}|${song.artists.join('/')}').hashCode & 0x7fffffff)
+            .toRadixString(16);
+    return '${song.id}_${song.source}_$fp.$ext';
   }
 
   static Future<File> _meta() async {
@@ -124,6 +130,22 @@ class MusicCache {
     }
   }
 
+  /// 删除单曲缓存文件（含 meta 记录）——缓存被判定为无效（如 30 秒试听片段）时用
+  static Future<void> removeFile(Song song) async {
+    final dir = await _cacheDir();
+    final fileName = _fileName(song);
+    final f = File(p.join(dir.path, fileName));
+    try {
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+    try {
+      final meta = await _readMeta();
+      final before = meta.length;
+      meta.removeWhere((m) => m['file'] == fileName);
+      if (meta.length != before) await _writeMeta(meta);
+    } catch (_) {}
+  }
+
   /// 当前缓存总大小（MB），供设置/缓存管理页展示
   static Future<double> totalSizeMb() async {
     final dir = await _cacheDir();
@@ -136,6 +158,18 @@ class MusicCache {
       }
     }
     return total / 1024 / 1024;
+  }
+
+  /// 缓存文件数量（含元数据文件），供设置/缓存管理页展示
+  static Future<int> countFiles() async {
+    final dir = await _cacheDir();
+    var n = 0;
+    try {
+      await for (final e in dir.list()) {
+        if (e is File) n++;
+      }
+    } catch (_) {}
+    return n;
   }
 
   /// 清空全部缓存（含元数据），可选功能

@@ -82,6 +82,8 @@ Future<void> _initAudioService() async {
     ),
   );
   playerState.attachAudioHandler(handler);
+  // 应用音频焦点配置（跟随"与其他应用同时播放"开关）
+  unawaited(applyAudioFocusConfig());
 }
 
 class LiquidMusicApp extends StatelessWidget {

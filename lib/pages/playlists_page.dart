@@ -49,23 +49,26 @@ void pushPlaylistDetail(
       PageRouteBuilder(
         opaque: false,
         transitionDuration: const Duration(milliseconds: 400),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
+        // 关闭动画已由详情页自定义（下滑+缩小+淡出+模糊消散），
+        // 反向转场缩短到 150ms，避免 pop 时出现二次回弹痕迹
+        reverseTransitionDuration: const Duration(milliseconds: 150),
         pageBuilder: (_, anim, __) {
           final curved = CurvedAnimation(
             parent: anim,
             curve: Curves.easeOutCubic,
           );
-          return FadeTransition(
-            opacity: curved,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.035),
-                end: Offset.zero,
-              ).animate(curved),
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.97, end: 1.0).animate(curved),
-                child: page,
-              ),
+          // 注意：这里不能加 FadeTransition——淡入会让详情页在转场期间
+          // 半透明，掩盖背景模糊的过渡过程，导致用户看到的是
+          // "歌单完全打开后背景一瞬间变糊"。保持页面全程不透明
+          // （上滑 + 轻微缩放），背景模糊动画从点击起全程可见
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.035),
+              end: Offset.zero,
+            ).animate(curved),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.97, end: 1.0).animate(curved),
+              child: page,
             ),
           );
         },

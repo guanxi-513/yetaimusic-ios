@@ -1,6 +1,9 @@
 /// 全局 UI 设置（设置页可调，shared_preferences 持久化）
 library;
 
+import 'dart:async';
+
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +27,39 @@ final ValueNotifier<UiStyle> uiStyle = ValueNotifier<UiStyle>(UiStyle.glass);
 
 /// 歌曲卡片是否渲染毛玻璃背景模糊（默认 false：不渲染，提升列表滚动性能）
 final ValueNotifier<bool> songCardBlur = ValueNotifier<bool>(false);
+
+/// 与其他应用同时播放（默认 false）：开启后使用"共存型"音频焦点，
+/// 打开抖音/视频等会抢音频焦点的应用时，本 App 的音乐不暂停、音量不变
+final ValueNotifier<bool> keepPlayingWithOtherApps = ValueNotifier<bool>(false);
+
+/// 应用音频焦点配置（启动时与开关切换时调用）：
+/// Android：开 = gainTransientMayDuck（共存，其他应用抢焦点时我们只收 duck 事件，
+///          just_audio 对 media 用途的 duck 不降音量不暂停 → 同时播放）
+///          关 = gain（独占，其他应用抢焦点时暂停，Android 默认行为）
+/// iOS：开 = playback + mixWithOthers（允许与其他 App 音频混合，刷抖音音乐不中断）
+///      关 = playback 独占（默认，被其他 App 接管时暂停）
+Future<void> applyAudioFocusConfig() async {
+  try {
+    final session = await AudioSession.instance;
+    await session.configure(AudioSessionConfiguration(
+      avAudioSessionCategory: AVAudioSessionCategory.playback,
+      avAudioSessionCategoryOptions: keepPlayingWithOtherApps.value
+          ? AVAudioSessionCategoryOptions.mixWithOthers
+          : AVAudioSessionCategoryOptions.none,
+      androidAudioAttributes: const AndroidAudioAttributes(
+        contentType: AndroidAudioContentType.music,
+        usage: AndroidAudioUsage.media,
+      ),
+      androidAudioFocusGainType: keepPlayingWithOtherApps.value
+          ? AndroidAudioFocusGainType.gainTransientMayDuck
+          : AndroidAudioFocusGainType.gain,
+      androidWillPauseWhenDucked: false,
+    ));
+    await session.setActive(true);
+  } catch (_) {
+    // 配置失败不影响播放（保持系统默认焦点行为）
+  }
+}
 
 // ---------- 歌单详情页过渡动画三开关（默认全开，可自由组合） ----------
 
@@ -79,6 +115,8 @@ Future<void> loadUiSettings() async {
     orElse: () => UiStyle.glass,
   );
   songCardBlur.value = prefs.getBool('song_card_blur') ?? false;
+  keepPlayingWithOtherApps.value =
+      prefs.getBool('keep_playing_with_other_apps') ?? false;
   transitionHero.value = prefs.getBool('transition_hero') ?? true;
   transitionPage.value = prefs.getBool('transition_page') ?? true;
   transitionStagger.value = prefs.getBool('transition_stagger') ?? true;
@@ -117,4 +155,12 @@ Future<void> setSongCardBlur(bool value) async {
   songCardBlur.value = value;
   final prefs = await SharedPreferences.getInstance();
   await prefs.setBool('song_card_blur', value);
+}
+
+/// 切换「与其他应用同时播放」并持久化 + 立即应用音频焦点配置
+Future<void> setKeepPlayingWithOtherApps(bool value) async {
+  keepPlayingWithOtherApps.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('keep_playing_with_other_apps', value);
+  unawaited(applyAudioFocusConfig());
 }
