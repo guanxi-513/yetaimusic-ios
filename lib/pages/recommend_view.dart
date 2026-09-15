@@ -11,6 +11,7 @@ library;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../state/ui_settings.dart';
 import 'package:provider/provider.dart';
 
@@ -67,14 +68,62 @@ class _RecommendViewState extends State<RecommendView>
   /// 每个分区默认展示的歌曲数（横向滚动看这些；一键播放播全部）
   static const int _previewCount = 10;
 
+  // ---------- 分区排序（持久化） ----------
+  /// SharedPreferences 存储键
+  static const String _orderKey = 'recommend_section_order';
+
+  /// 默认顺序：daily → radar → kugou_daily → kugou_fm → qq_daily
+  static const List<String> _defaultOrder = [
+    'daily',
+    'radar',
+    'kugou_daily',
+    'kugou_fm',
+    'qq_daily',
+  ];
+
+  /// 合法分区 id 集合（用于读取持久化时过滤脏数据）
+  static const Set<String> _validIds = {
+    'daily',
+    'radar',
+    'kugou_daily',
+    'kugou_fm',
+    'qq_daily',
+  };
+
+  /// 当前分区顺序（initState 从本地读，拖动后更新并保存）
+  List<String> _order = [..._defaultOrder];
+
   @override
   bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    // 延迟到首帧后加载，确保 AuthState 可用
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    // 延迟到首帧后加载，确保 AuthState 可用；先恢复用户自定义顺序再加载分区数据
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadOrder();
+      if (!mounted) return;
+      _load();
+    });
+  }
+
+  /// 从本地读取已保存的分区顺序；脏数据/缺项时按默认顺序补齐。
+  Future<void> _loadOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_orderKey);
+    if (saved == null || saved.isEmpty) return;
+    final list = saved.split(',');
+    // 只保留合法 id；再把默认顺序里未出现的 id 追加到末尾（新增分区兜底）
+    _order = [
+      ...list.where(_validIds.contains),
+      ..._defaultOrder.where((e) => !list.contains(e)),
+    ];
+  }
+
+  /// 把当前 _order 写回本地。
+  Future<void> _saveOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_orderKey, _order.join(','));
   }
 
   Future<void> _load() async {
@@ -314,108 +363,174 @@ class _RecommendViewState extends State<RecommendView>
     _maybeReloadOnAuthChange();
 
     if (_loading) {
-      return Center(
-        child: CircularProgressIndicator(color: fgSecondary),
-      );
+      return Center(child: CircularProgressIndicator(color: fgSecondary));
     }
     if (_error != null) {
       return _ErrorView(message: _error!, onRetry: _load);
     }
 
+    // 按 _order 顺序构造可见分区的 _SectionData 列表（不可见返回 null 被过滤）
+    final sections = _order
+        .map((id) => _buildSection(id))
+        .whereType<_SectionData>()
+        .toList();
+
     return RefreshIndicator(
       color: fgPrimary,
       backgroundColor: bgElevated,
       onRefresh: _load,
-      child: ListView(
+      child: ReorderableListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
-        children: [
-          // ---- 第一分区：每日推荐 ----
-          _SectionHeader(
-            icon: '📅',
-            title: _fromFallback ? '热门歌单' : '每日推荐',
-            busy: _playingSection == 1,
-            onPlay: () => _playSection(1),
-            onMore: _openDailyDetail,
-          ),
-          if (_needLoginHint)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: _LoginHintBanner(onLogin: () => _showLogin(context)),
-            ),
-          _HorizontalSongList(
-            songs: _songs.take(_previewCount).toList(),
-            onTap: _playSong,
-          ),
-
-          const SizedBox(height: 10),
-
-          // ---- 第二分区：雷达歌单（获取成功才显示） ----
-          if (_radarLoaded) ...[
-            _SectionHeader(
-              icon: '📡',
-              title: '雷达歌单',
-              busy: _playingSection == 2,
-              onPlay: () => _playSection(2),
-              onMore: _openRadarDetail,
-            ),
-            _HorizontalSongList(
-              songs: _radarSongs.take(_previewCount).toList(),
-              onTap: _playSong,
-            ),
-          ],
-
-          // ---- 第三分区：酷狗每日推荐（需酷狗登录，未登录不渲染） ----
-          if (_kgDailyLoaded) ...[
-            const SizedBox(height: 16),
-            _SectionHeader(
-              icon: '🎧',
-              title: '酷狗每日推荐',
-              busy: _playingSection == 3,
-              onPlay: () => _playSection(3),
-              onMore: _openKgDailyDetail,
-            ),
-            _HorizontalSongList(
-              songs: _kgDailySongs.take(_previewCount).toList(),
-              onTap: _playSong,
-            ),
-          ],
-
-          // ---- 第四分区：猜你喜欢（酷狗私人FM，未登录不渲染） ----
-          if (_kgFmLoaded) ...[
-            SizedBox(height: 10),
-            _SectionHeader(
-              icon: '💫',
-              title: '猜你喜欢',
-              busy: _playingSection == 4,
-              onPlay: () => _playSection(4),
-              onMore: _openKgFmDetail,
-            ),
-            _HorizontalSongList(
-              songs: _kgFmSongs.take(_previewCount).toList(),
-              onTap: _playSong,
-            ),
-          ],
-
-          // ---- 第五分区：QQ 每日推荐（需 QQ 登录，未登录完全不渲染） ----
-          if (_qqDailyLoaded) ...[
-            SizedBox(height: 10),
-            _SectionHeader(
-              icon: '🐧',
-              title: 'QQ 每日推荐',
-              busy: _playingSection == 5,
-              onPlay: () => _playSection(5),
-              onMore: _openQQDailyDetail,
-            ),
-            _HorizontalSongList(
-              songs: _qqDailySongs.take(_previewCount).toList(),
-              onTap: _playSong,
-            ),
-          ],
-        ],
+        buildDefaultDragHandles: false,
+        itemCount: sections.length,
+        onReorderItem: (oldIndex, newIndex) {
+          // onReorderItem 已自动为"已移除 oldIndex 项"调整 newIndex，无需手动减一
+          setState(() {
+            final item = sections.removeAt(oldIndex);
+            sections.insert(newIndex, item);
+            _order = sections.map((s) => s.id).toList();
+          });
+          _saveOrder();
+        },
+        itemBuilder: (context, index) {
+          final s = sections[index];
+          return ReorderableDelayedDragStartListener(
+            key: ValueKey(s.id), // ★ 每个分区唯一 key，拖动必备
+            index: index,
+            child: _buildSectionWidget(s),
+          );
+        },
       ),
     );
   }
+
+  /// 构造某分区的元数据；不可见（未登录/未加载成功）时返回 null。
+  /// _playingSection 与分区 id 映射：daily→1, radar→2, kugou_daily→3,
+  /// kugou_fm→4, qq_daily→5（见 _playSection 的 switch）。
+  _SectionData? _buildSection(String id) {
+    switch (id) {
+      case 'daily':
+        return _SectionData(
+          id: 'daily',
+          icon: '📅',
+          title: _fromFallback ? '热门歌单' : '每日推荐',
+          busy: _playingSection == 1,
+          onPlay: () => _playSection(1),
+          onMore: _openDailyDetail,
+          songs: _songs.take(_previewCount).toList(),
+          needLoginHint: _needLoginHint,
+          onLogin: () => _showLogin(context),
+          topSpacing: 0,
+        );
+      case 'radar':
+        if (!_radarLoaded) return null;
+        return _SectionData(
+          id: 'radar',
+          icon: '📡',
+          title: '雷达歌单',
+          busy: _playingSection == 2,
+          onPlay: () => _playSection(2),
+          onMore: _openRadarDetail,
+          songs: _radarSongs.take(_previewCount).toList(),
+          topSpacing: 10,
+        );
+      case 'kugou_daily':
+        if (!_kgDailyLoaded) return null;
+        return _SectionData(
+          id: 'kugou_daily',
+          icon: '🎧',
+          title: '酷狗每日推荐',
+          busy: _playingSection == 3,
+          onPlay: () => _playSection(3),
+          onMore: _openKgDailyDetail,
+          songs: _kgDailySongs.take(_previewCount).toList(),
+          topSpacing: 16,
+        );
+      case 'kugou_fm':
+        if (!_kgFmLoaded) return null;
+        return _SectionData(
+          id: 'kugou_fm',
+          icon: '💫',
+          title: '猜你喜欢',
+          busy: _playingSection == 4,
+          onPlay: () => _playSection(4),
+          onMore: _openKgFmDetail,
+          songs: _kgFmSongs.take(_previewCount).toList(),
+          topSpacing: 10,
+        );
+      case 'qq_daily':
+        if (!_qqDailyLoaded) return null;
+        return _SectionData(
+          id: 'qq_daily',
+          icon: '🐧',
+          title: 'QQ 每日推荐',
+          busy: _playingSection == 5,
+          onPlay: () => _playSection(5),
+          onMore: _openQQDailyDetail,
+          songs: _qqDailySongs.take(_previewCount).toList(),
+          topSpacing: 10,
+        );
+      default:
+        return null;
+    }
+  }
+
+  /// 把 _SectionData 渲染为分区 widget（标题行 + 可选登录提示 + 横向歌曲列表）。
+  /// 视觉布局与改造前的硬编码实现完全一致。
+  Widget _buildSectionWidget(_SectionData s) {
+    return Column(
+      key: ValueKey(s.id), // 与 ReorderableDelayedDragStartListener 的 key 一致
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (s.topSpacing > 0) SizedBox(height: s.topSpacing),
+        _SectionHeader(
+          icon: s.icon,
+          title: s.title,
+          busy: s.busy,
+          onPlay: s.onPlay,
+          onMore: s.onMore,
+        ),
+        if (s.needLoginHint && s.onLogin != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: _LoginHintBanner(onLogin: s.onLogin!),
+          ),
+        _HorizontalSongList(songs: s.songs, onTap: _playSong),
+      ],
+    );
+  }
+}
+
+// ---------- 分区元数据 ----------
+
+/// 分区渲染所需数据的快照：build 时按 _order 顺序构造，
+/// 不可见的分区（未登录/未加载成功）在 _buildSection 返回 null 被过滤。
+class _SectionData {
+  final String id; // 固定 id：daily/radar/kugou_daily/kugou_fm/qq_daily
+  final String icon;
+  final String title;
+  final bool busy; // 对应 _playingSection
+  final VoidCallback onPlay;
+  final VoidCallback onMore;
+  final List<Song> songs; // 已 take(_previewCount)
+  final bool needLoginHint; // 仅 daily 分区：未登录时显示登录提示 banner
+  final VoidCallback? onLogin; // needLoginHint=true 时提供登录回调
+  final double topSpacing; // 该分区上方的 SizedBox 间隔
+
+  _SectionData({
+    required this.id,
+    required this.icon,
+    required this.title,
+    required this.busy,
+    required this.onPlay,
+    required this.onMore,
+    required this.songs,
+    this.needLoginHint = false,
+    this.onLogin,
+    this.topSpacing = 0,
+  });
 }
 
 // ---------- 分区标题行 ----------
@@ -458,6 +573,12 @@ class _SectionHeader extends StatelessWidget {
             ),
             _PlayButton(busy: busy, onTap: onPlay),
             SizedBox(width: 8),
+            // 长按拖拽暗示：放在 > 箭头左边，次要色不抢眼
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+              child: Icon(Icons.drag_handle, color: fgSecondary, size: 18),
+            ),
+            SizedBox(width: 4),
             GestureDetector(
               onTap: onMore,
               behavior: HitTestBehavior.opaque,
@@ -608,9 +729,8 @@ class _SongCard extends StatelessWidget {
                             height: 120,
                             // 图片 CDN 可能拒绝 Dart 默认 UA（403），统一带浏览器 UA
                             httpHeaders: kImageHttpHeaders,
-                            placeholder: (_, __) => Container(
-                              color: fgPrimary.withOpacity(0.10),
-                            ),
+                            placeholder: (_, __) =>
+                                Container(color: fgPrimary.withOpacity(0.10)),
                             errorWidget: (_, __, ___) => Container(
                               color: fgPrimary.withOpacity(0.10),
                               child: Icon(
@@ -752,11 +872,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.cloud_off,
-              color: fgPrimary.withOpacity(0.4),
-              size: 48,
-            ),
+            Icon(Icons.cloud_off, color: fgPrimary.withOpacity(0.4), size: 48),
             const SizedBox(height: 16),
             Text(
               message,
@@ -786,5 +902,3 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
-
-

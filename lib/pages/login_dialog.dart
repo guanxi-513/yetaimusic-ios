@@ -1,4 +1,4 @@
-﻿/// 扫码登录弹窗（三音源）：顶部「网易云 / 酷狗 / QQ」切换，各自独立扫码流程
+/// 扫码登录弹窗（三音源）：顶部「网易云 / 酷狗 / QQ」切换，各自独立扫码流程
 ///
 /// - 网易云：/login/qr + /login/qr/check 轮询 801/802/803/800
 /// - 酷狗：/kugou/login/qr + /kugou/login/qr/check 轮询 status 1/2/4/0，
@@ -63,7 +63,7 @@ class _LoginDialogState extends State<LoginDialog> {
   /// 当前音源扫码提示文案
   String get _scanHint => switch (_source) {
     'kugou' => '请使用酷狗音乐 App 扫码登录',
-    'qq' => '请使用 QQ 音乐 App 扫码登录',
+    'qq' => '请使用 QQ App 扫码登录',
     'soda' => '请使用汽水音乐 App 扫码登录',
     _ => '请使用网易云音乐 App 扫码登录',
   };

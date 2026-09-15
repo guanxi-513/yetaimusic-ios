@@ -2,7 +2,68 @@
 
 > 总日志：所有版本更新统一记录在本文件，最新版本在最上方，时间精确到小时；同一版本内新小时在上、旧小时在下。
 
-## v1.5.0（进行中）· Apple Music 第 5 音源接入 · 2026-09-13 19:00
+## v1.5.0（进行中）· Apple Music 第 5 音源接入 · 2026-09-13 19:00 起
+
+### 21:00 · Apple Music iOS 登录打通（方案3 原生 Cookie 提取）· 09-14
+- **iOS 原生通道打通**：`WKWebsiteDataStore.httpCookieStore.getAllCookies()` 提取完整 cookie（含 HttpOnly 的 media-user-token），
+  提交长度从 len=246（仅裸 token）提升到 **len=1487（完整 7 键 cookie 串：itspod / pltvcid / pldfltcid / itua / media-user-token / acn1 / dslang）**
+- 后端 `/apple/login/token` 接收保存成功，`apple-cookie.txt` 更新（1487 字节，token `0.AlHRG...`），`/apple/status` loggedIn=true
+- **排查 /apple/user/playlist 502**：根因是当前账号**未订阅 Apple Music**，amp-api 返回 HTTP 400「Insufficient Privileges / CloudLibrary 权限不足」；
+  订阅账号可正常获取歌单（免费账号仅能登录、拿不到资料库歌单），已确认非后端代码问题
+- 遗留说明：账号订阅后 /v1/me/library/* 即可正常返回
+
+### 20:00 · 局域网直连后端方案 · 09-14
+- 确认后端监听 `0.0.0.0:41831`（`::`），Wi-Fi 局域网 IP `10.91.29.234`（DHCP 会变）
+- Windows 防火墙无 41831 入站规则，需管理员执行 `netsh advfirewall firewall add rule name="liquid-music-backend-41831" dir=in action=allow protocol=TCP localport=41831` 放行
+- iPhone 填 `http://10.91.29.234:41831` 即可同一 Wi-Fi 直连
+
+### 19:00 · 安卓 Release 构建交付 · 09-14
+- `app-release.apk`（57.9MB）构建完成，包含：歌单详情缓存、QQ 扫码文案修复、推荐页改动
+- 已交付用户安装测试
+
+### 18:00 · 服务器后端更新包 · 09-14
+- 打包 `backend-server-update.zip`（95KB）：server.js / apple-api.js / kugou-api.js / qq-api.js / soda-api.js / admin-logger.js / package.json / package-lock.json / .npmrc
+- **特意排除**所有 cookie/登录态文件（避免覆盖服务器已登录账号）、qr-decode 逆向工具、node_modules
+- 服务器部署：解压覆盖 → `npm install --omit=dev` → `pm2 restart music-hook` → `curl localhost:41831/apple/status` 验证
+- 注意：服务器需有有效 Apple cookie（iOS 登录提交或手动传 apple-cookie.txt）才能拉歌单
+
+### 17:00 · 歌单详情缓存（秒开）· 09-14
+- 打开歌单先读本地缓存立即显示（不转圈），后台静默拉网络刷新并更新缓存
+- 网络刷新失败时保留缓存列表，仅轻提示「刷新失败，当前显示缓存内容」，不覆盖不报全屏错误
+- 存储：SharedPreferences `playlist_cache_{source}_{id}`（歌曲列表 + 名称/封面/描述），覆盖 netease/kugou/qq/apple/soda 全部音源
+
+### 16:00 · 推荐页分区排序 · 09-14
+- 推荐页多分区（每日推荐 / 雷达歌单 / 酷狗日推 / 猜你喜欢 / QQ日推）支持长按拖动自定义排序，排序持久化
+- 已输出前端提示词文档（docs/推荐页分区排序-前端提示词.md）
+
+### 15:00 · QQ 扫码登录文案修复 · 09-14
+- 登录入口文案由「请使用 QQ 音乐扫码登录」改为「请使用 QQ App 扫码登录」（实际是用 QQ 扫，不是 QQ 音乐）
+
+### 13:00 · iOS 移植构建闭环（GitHub Actions 免费 macOS runner）· 09-14
+- `flutter create --platforms=ios --org com.nini --project-name liquid_music` 生成 iOS 工程，Bundle ID `com.nini.liquidMusic`，Android 不动
+- Info.plist：显示名「液态音乐」、`UIBackgroundModes=[audio]` 后台播放、`NSAllowsArbitraryLoads` 明文 http、MinOS 15.0
+- **构建排坑**（多次失败 → 修复）：
+  1. Flutter 3.44 默认 SPM 不产出 ipa → 加 Podfile + `flutter config --no-enable-swift-package-manager`
+  2. 仍无产物 → 改 `flutter build ios --release --no-codesign` 产 Runner.app + 手动 `mkdir Payload && zip` 打 ipa
+  3. Podfile platform 13.0→15.0（对齐 Flutter 3.44）+ workflow 全清 pod 重装（deintegrate + rm Pods/Podfile.lock + pod install + grep 校验）→ **构建全绿（7 pods）**
+- 产物：`app-release-ios-unsigned`（ipa 8.1MB / Runner.app 19.4MB，单架构 arm64，体积比安卓小属正常），支持 iOS 15.0+
+- 安装方式：爱思助手免费 Apple ID 自签（不上 App Store，免费自签 7 天需重签）
+- iOS 差异：锁屏/通知栏仅标准媒体控制（无自定义滚动歌词/收藏按钮）；安卓专属插件（flutter_displaymode 高刷、MediaNotificationBridge）iOS 上 try/catch 兜底不崩
+
+### 12:00 · AppleMusic 换源播放 · 09-14
+- 输出前端提示词：播放页 Apple 音源歌曲直接调后端 `/apple/song/url` 取官方流，失败走换源链（网易云解锁 → QQ → B站兜底）
+- Apple 歌单详情走 `/apple/playlist/detail` 返回曲目元数据，播放时按歌名+歌手匹配换源
+
+### 21:00 · Apple 歌单实测与登录排查 · 09-13
+- `/apple/user/playlist` 直测 200：神的歌单 95 首 + 喜爱歌曲 27 首（实时拉取，非缓存）
+- 确认旧 cookie（`0.Agv5v7...`）仍有效；iOS WebView 的 `document.cookie` 读不到 media-user-token（HttpOnly）→ 需原生通道
+- cpolar 隧道 `appppp` 建立：`https://16ea83d5.r10.cpolar.top` → 本地 41831
+
+### 20:00 · Apple 登录方案2/3 开发 · 09-13
+- 方案2（getCookies 兜底）：只取到裸 media-user-token（len=246），仍不满足
+- 方案3（参考 Cider 源码）：Cider 登录实为网页登录 + Electron 原生 `session.cookies.get()` 提取 7 个关键 cookie；
+  iOS 等价实现 `WKWebsiteDataStore.httpCookieStore.getAllCookies()`（能读 HttpOnly）
+- 已实现：`AppDelegate.swift` 新增 MethodChannel `liquid_music/apple_cookies.getAllCookies`；前端登录页方案0 原生通道优先（iOS），安卓逻辑不变
 
 ### 19:00 · Apple Music 接入（⏸ 未完成，临时搁置先干别的）
 
