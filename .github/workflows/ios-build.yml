@@ -1,4 +1,4 @@
-name: iOS Build (unsigned IPA)
+﻿name: iOS Build (unsigned IPA)
 
 # 触发方式：
 #   1. 手动：GitHub 仓库 → Actions → iOS Build → Run workflow
@@ -52,7 +52,7 @@ jobs:
         # flutter build ios 产出 .app（未签名），比 build ipa 更可控
         run: |
           flutter build ios --release --no-codesign \
-            --build-name=1.5.0 --build-number=150
+            --build-name=1.5.1 --build-number=151
           echo "== iphoneos output =="
           ls -la build/ios/iphoneos/ || true
 
