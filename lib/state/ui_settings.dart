@@ -32,6 +32,10 @@ final ValueNotifier<bool> songCardBlur = ValueNotifier<bool>(false);
 /// 打开抖音/视频等会抢音频焦点的应用时，本 App 的音乐不暂停、音量不变
 final ValueNotifier<bool> keepPlayingWithOtherApps = ValueNotifier<bool>(false);
 
+/// 底部播放栏距屏幕底部的间距（单位 px，默认 24：比旧版固定 12 更远离导航栏）
+/// 越大播放栏越靠上，设置页「自定义界面」可调
+final ValueNotifier<double> miniPlayerBottomOffset = ValueNotifier<double>(24.0);
+
 /// 应用音频焦点配置（启动时与开关切换时调用）：
 /// Android：开 = gainTransientMayDuck（共存，其他应用抢焦点时我们只收 duck 事件，
 ///          just_audio 对 media 用途的 duck 不降音量不暂停 → 同时播放）
@@ -117,6 +121,8 @@ Future<void> loadUiSettings() async {
   songCardBlur.value = prefs.getBool('song_card_blur') ?? false;
   keepPlayingWithOtherApps.value =
       prefs.getBool('keep_playing_with_other_apps') ?? false;
+  miniPlayerBottomOffset.value =
+      prefs.getDouble('mini_player_bottom_offset') ?? 24.0;
   transitionHero.value = prefs.getBool('transition_hero') ?? true;
   transitionPage.value = prefs.getBool('transition_page') ?? true;
   transitionStagger.value = prefs.getBool('transition_stagger') ?? true;
@@ -163,4 +169,11 @@ Future<void> setKeepPlayingWithOtherApps(bool value) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setBool('keep_playing_with_other_apps', value);
   unawaited(applyAudioFocusConfig());
+}
+
+/// 调整底部播放栏距底部的间距（px）并持久化；越大越靠上
+Future<void> setMiniPlayerBottomOffset(double value) async {
+  miniPlayerBottomOffset.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setDouble('mini_player_bottom_offset', value);
 }

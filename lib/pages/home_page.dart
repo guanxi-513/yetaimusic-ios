@@ -375,6 +375,44 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               ),
             ),
             Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+            // 播放栏位置（距底部间距，越大越靠上）
+            ValueListenableBuilder<double>(
+              valueListenable: miniPlayerBottomOffset,
+              builder: (_, offset, __) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '播放栏位置',
+                          style: TextStyle(color: fgPrimary, fontSize: 14),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${offset.round()} px',
+                          style: TextStyle(color: fgTertiary, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '播放栏距屏幕底部的距离，越大越靠上',
+                      style: TextStyle(color: fgTertiary, fontSize: 11),
+                    ),
+                    Slider(
+                      value: offset.clamp(8.0, 64.0),
+                      min: 8,
+                      max: 64,
+                      divisions: 14,
+                      activeColor: const Color(0xFF1DB954),
+                      inactiveColor: fgPrimary.withOpacity(0.15),
+                      onChanged: setMiniPlayerBottomOffset,
+                    ),
+                  ],
+                ),
+              ),
+            ),
             // 与其他应用同时播放（音频焦点共存）
             ValueListenableBuilder<bool>(
               valueListenable: keepPlayingWithOtherApps,

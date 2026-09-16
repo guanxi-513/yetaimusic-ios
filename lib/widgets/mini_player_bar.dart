@@ -64,12 +64,15 @@ class _Bar extends StatelessWidget {
         }
       },
       child: ListenableBuilder(
-        listenable: uiStyle,
+        listenable: Listenable.merge([uiStyle, miniPlayerBottomOffset]),
         builder: (context, _) {
           final plain = uiStyle.value == UiStyle.plain;
           final light = isLight;
           return Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            // 底部间距跟随设置：默认 24，可在设置「自定义界面」自由调整
+            margin: EdgeInsets.fromLTRB(
+              16, 0, 16, miniPlayerBottomOffset.value,
+            ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               // 浅色档：外层不渲染阴影，两侧干净透出背景
