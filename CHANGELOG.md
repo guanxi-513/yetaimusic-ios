@@ -4,6 +4,35 @@
 
 ## v1.5.0（进行中）· Apple Music 第 5 音源接入 · 2026-09-13 19:00 起
 
+### 21:00 · 多设备同步播放功能（双通道）· 09-19
+- 新增「多设备同步」：同一 Wi-Fi 下两台手机，主控点歌/暂停/seek，被控实时跟着播
+- **双通道架构**：WebRTC 点对点（低延迟 <50ms，普通 Wi-Fi）+ HTTP 长轮询（兼容模式，热点/AP 隔离/模拟器）
+- **自动降级**：WebRTC 5 秒连不上自动切 HTTP 长轮询，状态栏显示当前通道
+- **设备发现**：mDNS 自动发现 + UDP 广播 + 手动输入 IP（模拟器/桥接场景）
+- 修复：建连超时定时器未取消（连上 15 秒自动断开）、IPv4 host candidate 收集失败（Android 12+ 位置权限）、HTTP 轮询偶发超时误断（连续 10 次才断 + 5 秒自动重连）
+- 软限制：最多 5 台设备同步
+
+### 19:00 · App 图标自定义 · 09-19
+- **3 张预设图标**（Activity Alias 切换）：头像完整版 / 双眼特写 / 单眼特写
+- **用户上传图片**：保存为 App 内头像 + 可创建桌面快捷方式（Android 不支持直接替换主图标，快捷方式为变通方案）
+- 设置 → 外观 → 应用图标
+
+### 22:00 · 音乐后端接入工具箱 Launcher · 09-16
+- 工具箱后端管理器（launcher/services.json）注册「音乐后端」服务：netease-music-source，端口 41831，双击启动管理器可一键启动/停止/看实时日志/打开页面
+
+### 17:00 · 多音源匹配链路修复（后端，重点）· 09-16
+- **combineKw 搜索词修复**：歌手只取前 2 个 token——「All Falls Down Alan Walker Noah Cyrus Digital Farm Animals Juliander」这类超长 AND 词会把网易云正版挤出搜索结果（实测正版只在「歌名+首歌手」时召回），导致 pyncmd 无 id 可用、只能跳 B 站；现全局统一受益（网易云/B站/QQ/酷狗/歌词搜索）
+- **neteaseCandidates 黑名单豁免**：目标歌名自带 remix/live 等词时不误杀正版候选（修《Clear (Shawn Wasabi Remix)》正版被拦）
+- **strongPickBili 重写**：规范名匹配 + 黑名单逐词 + 歌手 token 拆分 + 时长差 ≤35s；「- 别的歌手」模式（如《All Falls Down》匹配到 Paul Rey 版）不再放行；Q1 无损/视听 > Q2 官方/原版 > 普通
+- **unblockSong 全局保护**：pyncmd 返回非 music.126.net 拒绝（防串歌）；QQ URL 含 M500（128k 试听）全局拒绝
+- **Apple 链路重写为酷狗同款**：unblock 源统一 `['qq']` + pyncmd 串行重试 2 次（间隔 1.5s），B 站兜底搜索词同步用 combineKw
+- **lyric/any 空壳歌词兜底**：网易云歌词过滤元信息行后若无可演唱行，继续 fallback 酷狗歌词源
+- 验证通过：All Falls Down → pyncmd 网易云 CDN FLAC；REDRED (CORTIS) → B 站 Hi-Res 无损视听版（网易云无正版时链路最优解）
+- 打包 `music-hook-server.zip`（29.3MB，已排除全部 cookie/登录态/日志/测试文件），供用户上传覆盖服务器
+
+### 15:00 · Release 构建 · 09-16
+- `app-release-9.16.apk`（58.3MB）构建完成
+
 ### 18:00 · 新增：与其他应用同时播放（音频焦点共存）· 09-15
 - 设置页新增「与其他应用同时播放」开关：开启后打开抖音等抢占音频焦点的应用时，音乐**不暂停、音量不变**，两边同时出声
 - Android 原理：audio_session 焦点类型切换为 `gainTransientMayDuck`（共存型）；just_audio 对 media 用途收到的 duck 事件不降音量不暂停 → 实现真正同时播放；关闭时恢复默认（被抢焦点暂停）

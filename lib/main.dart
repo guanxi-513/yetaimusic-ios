@@ -4,13 +4,20 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:flutter_screen_overlay/flutter_screen_overlay.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
 import 'pages/home_page.dart';
 import 'services/api_service.dart';
+import 'services/app_icon_service.dart';
 import 'services/audio_handler.dart';
+import 'services/lock_screen_lyrics_service.dart';
 import 'services/media_notification_bridge.dart';
+import 'services/music_cache.dart';
+import 'overlay_main.dart';
+import 'services/sync_service.dart';
 import 'state/auth_state.dart';
 import 'state/player_state.dart';
 import 'state/ui_settings.dart';
@@ -21,11 +28,51 @@ import 'widgets/spotify_background.dart';
 late final PlayerState playerState;
 late final AuthState authState;
 
+/// 锁屏 Activity 引擎的诊断信息回传主 isolate 记入锁屏日志
+Future<void> _lockActivityDebug(String msg) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('lock_overlay_dbg', msg);
+  } catch (_) {}
+}
+
+/// 锁屏歌词悬浮窗独立引擎入口。
+/// flutter_screen_overlay 原生按函数名在 main 库查找此入口，
+/// 必须定义在本文件（release AOT 才能找到），UI 在 overlay_main.dart。
+@pragma("vm:entry-point")
+void overlayMain() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // overlay 引擎里任何 UI 错误回传主 isolate 记入锁屏日志（排查黑屏）
+  FlutterError.onError = (details) {
+    unawaited(
+      FlutterScreenOverlay.shareData({
+        'type': 'dbg',
+        'msg': 'overlay错误: ${details.exception}',
+      }),
+    );
+  };
+  runApp(const LockLyricsOverlayApp());
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 锁屏歌词 Activity 引擎（LockScreenActivity 以 route "lock_lyrics" 启动）：
+  // 只跑歌词 UI，绝不初始化音频/同步/登录等主 App 服务，
+  // 否则第二个引擎重复初始化会和主引擎打架。数据走 SharedPreferences。
+  if (WidgetsBinding.instance.platformDispatcher.defaultRouteName ==
+      'lock_lyrics') {
+    FlutterError.onError = (details) {
+      _lockActivityDebug('lockActivity错误: ${details.exception}');
+    };
+    runApp(const LockLyricsOverlayApp(prefsTransport: true));
+    return;
+  }
+
   // 先加载用户保存过的音源地址（本地读取，很快）
   await AppConfig.load();
+  // 清理上次中断的 .part 残留文件
+  await MusicCache.cleanupPartFiles();
   // 加载本地持久化的登录 cookie（登录态跟随本设备，重启不丢失）
   await ApiService.loadCookies();
   // 加载 UI 设置（歌曲卡片毛玻璃开关等）
@@ -49,6 +96,14 @@ Future<void> main() async {
   playerState = PlayerState();
   authState = AuthState();
   MediaNotificationBridge.init(playerState, loggedIn: () => authState.loggedIn);
+  // 锁屏歌词：监听锁屏状态 + 显示全屏歌词悬浮窗
+  LockScreenLyricsService.init(playerState);
+  // 多设备同步：PlayerState 作为被控端命令执行桥
+  SyncService.instance.bind(playerState);
+  // 读取持久化的同步连接方式（自动/WebRTC/HTTP 兼容模式）
+  unawaited(SyncService.instance.loadSettings());
+  // 读取当前桌面图标 alias 与自定义头像（启动页要显示）
+  unawaited(AppIconService.instance.init());
 
   // 先显示首屏；audio_service 在后台初始化，不再阻塞启动
   runApp(const LiquidMusicApp());
@@ -61,8 +116,7 @@ Future<void> setHighRefreshRate() async {
     final modes = await FlutterDisplayMode.supported;
     if (modes.isEmpty) return;
     // 选刷新率最高的模式
-    final best =
-        modes.reduce((a, b) => a.refreshRate > b.refreshRate ? a : b);
+    final best = modes.reduce((a, b) => a.refreshRate > b.refreshRate ? a : b);
     await FlutterDisplayMode.setPreferredMode(best);
   } catch (_) {
     // 部分设备/平台不支持，忽略
@@ -106,7 +160,10 @@ class LiquidMusicApp extends StatelessWidget {
             brightness: isLight ? Brightness.light : Brightness.dark,
             scaffoldBackgroundColor: Colors.transparent,
             fontFamilyFallback: const [
-              'PingFang SC', 'HarmonyOS Sans', 'Microsoft YaHei', 'sans-serif'
+              'PingFang SC',
+              'HarmonyOS Sans',
+              'Microsoft YaHei',
+              'sans-serif',
             ],
             colorScheme: isLight
                 ? const ColorScheme.light(

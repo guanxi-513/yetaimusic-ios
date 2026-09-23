@@ -202,44 +202,32 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 背景：按界面风格渲染（液态玻璃/暗色透明 = 封面模糊；极简暗色 = 纯黑）
+                  // 背景：独立的「播放页背景色」选项优先，强制覆盖主题预设；
+                  // 选「跟随预设」时才走原有封面模糊/纯色逻辑
                   Positioned.fill(
                     child: ListenableBuilder(
-                      listenable: uiStyle,
+                      listenable: Listenable.merge([
+                        uiStyle,
+                        pageBlur,
+                        playerBgStyle,
+                        customPlayerBgColor,
+                      ]),
                       builder: (context, _) {
-                        final style = uiStyle.value;
-                        final useCoverBlur = style != UiStyle.plain && !isLight;
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            AnimatedSwitcher(
-                              duration: Duration(milliseconds: 400),
-                              child: !useCoverBlur
-                                  ? (isLight ? _LightBg() : _PlainBg())
-                                  : (song?.cover ?? '').isNotEmpty
-                                  ? ImageFiltered(
-                                      key: ValueKey('bg-${song!.id}'),
-                                      imageFilter: ImageFilter.blur(
-                                        sigmaX: 32,
-                                        sigmaY: 32,
-                                      ),
-                                      child: CachedNetworkImage(
-                                        imageUrl: song.cover,
-                                        fit: BoxFit.cover,
-                                        errorWidget: (_, __, ___) =>
-                                            _FallbackBg(),
-                                      ),
-                                    )
-                                  : _FallbackBg(),
-                            ),
-                            // 黑遮罩：保证前景文字可读（极简暗色/极简白色不需要）
-                            if (style != UiStyle.plain && !isLight)
-                              ColoredBox(
-                                color: Color(0x80000000),
-                                child: SizedBox.expand(),
-                              ),
-                          ],
-                        );
+                        switch (playerBgStyle.value) {
+                          case PlayerBgStyle.transparent:
+                            // 全透明：直接透出下层首页（路由 opaque:false）
+                            return const SizedBox.shrink();
+                          case PlayerBgStyle.white:
+                            return const ColoredBox(color: Color(0xFFF9FAF4));
+                          case PlayerBgStyle.black:
+                            return const ColoredBox(color: Color(0xFF000000));
+                          case PlayerBgStyle.custom:
+                            return ColoredBox(
+                              color: Color(customPlayerBgColor.value),
+                            );
+                          case PlayerBgStyle.cover:
+                            return _buildCoverBackground(song);
+                        }
                       },
                     ),
                   ),
@@ -413,10 +401,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                 song: song,
                                 coverScale: _immerseCurve,
                                 controller: _immersiveLyricController,
-                                onUserScrollStart: () =>
-                                    _userScrolling = true,
-                                onUserScrollEnd: () =>
-                                    _userScrolling = false,
+                                onUserScrollStart: () => _userScrolling = true,
+                                onUserScrollEnd: () => _userScrolling = false,
                                 lyricScale: _lyricScale,
                                 onFontSizeTap: () =>
                                     _showLyricFontSheet(context),
@@ -532,6 +518,46 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
           ),
         );
       },
+    );
+  }
+
+  /// 跟随主题预设的播放页背景：
+  /// 玻璃/暗色透明 = 封面（pageBlur 开=高斯模糊，关=清晰）；
+  /// 极简暗色 = 黑色渐变；极简白色 = 暖白渐变。封面缺失时走兜底渐变。
+  Widget _buildCoverBackground(Song? song) {
+    final style = uiStyle.value;
+    final wantCover = style != UiStyle.plain && !isLight;
+    final wantBlur = pageBlur.value;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          child: !wantCover
+              ? (isLight ? _LightBg() : _PlainBg())
+              : (song?.cover ?? '').isNotEmpty
+              ? (wantBlur
+                    ? ImageFiltered(
+                        key: ValueKey('bg-${song!.id}'),
+                        imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+                        child: CachedNetworkImage(
+                          imageUrl: song.cover,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => _FallbackBg(),
+                        ),
+                      )
+                    : CachedNetworkImage(
+                        key: ValueKey('bg-${song!.id}'),
+                        imageUrl: song.cover,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => _FallbackBg(),
+                      ))
+              : _FallbackBg(),
+        ),
+        // 黑遮罩：保证前景文字可读（极简暗色/极简白色不需要）
+        if (style != UiStyle.plain && !isLight)
+          const ColoredBox(color: Color(0x80000000), child: SizedBox.expand()),
+      ],
     );
   }
 

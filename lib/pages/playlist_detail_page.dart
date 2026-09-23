@@ -291,16 +291,16 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: uiStyle,
+      listenable: Listenable.merge([uiStyle, secondaryTransparent]),
       builder: (context, _) {
         final style = uiStyle.value;
         return Stack(
           fit: StackFit.expand,
           children: [
-            // 背景按界面风格：
-            // 液态玻璃 = 实时毛玻璃（模糊透出下层）
-            // 暗色透明 = 全透明（直接透出下层）
-            // 极简暗色 = 纯黑；极简白色 = 暖白
+            // 背景按「二级页面背景透明」开关独立决定，与主题预设解耦：
+            // - 液态玻璃（暗色）：实时毛玻璃模糊层（玻璃效果本身即半透明透出下层）
+            // - 开关开：其他任何预设都不加背景层，路由 opaque:false 直接透出下层
+            // - 开关关：按预设铺实色背景（极简白=暖白，极简暗色/暗色透明=纯黑）
             if (style == UiStyle.glass && !isLight)
               // iOS 式整体渐进模糊：整个背景 sigma 0→20 均匀缓慢糊开
               // （600ms easeOutCubic），无区域、无分界、无"中心亮区"；
@@ -311,15 +311,16 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
                   final t = transitionPage.value ? _bgBlur.value : 1.0;
                   return BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 20 * t, sigmaY: 20 * t),
-                    child: Container(
-                        color: Colors.black.withOpacity(0.35 * t)),
+                    child: Container(color: Colors.black.withOpacity(0.35 * t)),
                   );
                 },
               )
-            else if (isLight)
-              ColoredBox(color: Color(0xFFF9FAF4))
-            else if (style == UiStyle.plain)
-              ColoredBox(color: Color(0xFF000000)),
+            else if (!secondaryTransparent.value)
+              ColoredBox(
+                color: isLight
+                    ? const Color(0xFFF9FAF4)
+                    : const Color(0xFF000000),
+              ),
             Scaffold(
               backgroundColor: Colors.transparent,
               body: SafeArea(
@@ -619,4 +620,3 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
-

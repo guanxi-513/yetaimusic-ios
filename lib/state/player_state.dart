@@ -17,11 +17,12 @@ import '../services/db_service.dart';
 import '../services/lrc_parser.dart';
 import '../services/media_notification_bridge.dart';
 import '../services/music_cache.dart';
+import '../services/sync_service.dart';
 
 /// 播放模式：顺序 / 随机 / 单曲循环
 enum PlayMode { order, shuffle, repeatOne }
 
-class PlayerState extends ChangeNotifier {
+class PlayerState extends ChangeNotifier implements SyncPlayerDelegate {
   final AudioPlayer _player = AudioPlayer();
   final Random _random = Random();
 
@@ -48,6 +49,10 @@ class PlayerState extends ChangeNotifier {
   /// 当前歌曲实际播放音质描述（如"FLAC 无损 · 解锁源pyncmd"），
   /// 用于播放页显示真实音质，避免与用户所选音质混淆
   String currentQuality = '';
+
+  /// 当前歌曲最终可播放 URL（本地缓存直播时为空串）。
+  /// 多设备同步：主控把它放进 play 消息兜底；被控优先自己解析。
+  String currentPlayUrl = '';
 
   // ---------- 播放模式 ----------
   PlayMode _playMode = PlayMode.order;
@@ -107,11 +112,20 @@ class PlayerState extends ChangeNotifier {
   bool _autoAdvancing = false;
 
   PlayerState() {
+    // just_audio 默认 LoopMode.off：播完后停在歌尾、资源保留，可 seek 恢复，
+    // 被控靠主控心跳 seek+resume 拉回，主控 next() 重新 setUrl 切歌
     _player.playerStateStream.listen((state) {
+      final was = _playing;
       _playing = state.playing;
       notifyListeners();
       // 播放/暂停状态变化 → 立即刷新通知栏（图标切换）
       MediaNotificationBridge.push(force: true);
+      // 多设备同步（主控）：播放/暂停变化广播给被控。
+      // 统一入口——UI 按钮/通知栏/线控都汇聚到播放器状态流。
+      // 换歌期间（_loading）由 play 消息代替，避免 pause→play 抖动。
+      if (was != _playing && !_loading) {
+        SyncService.instance.notifyPlayingChanged(_playing);
+      }
     });
     _player.positionStream.listen((p) {
       _position = p;
@@ -130,6 +144,11 @@ class PlayerState extends ChangeNotifier {
     // 播放完成 → 自动下一首
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed && !_autoAdvancing) {
+        // 多设备同步（被控）：切歌由主控决定，不自动播本地旧队列。
+        // ReleaseMode.stop 已让播放器停在歌尾；主控切歌时 syncPlay 重新 setUrl，
+        // 主控还在播同一首时心跳会 syncResume+syncSeek 把被控拉回正确位置。
+        final sync = SyncService.instance;
+        if (sync.role == SyncRole.follower && sync.isSynced) return;
         _autoAdvancing = true;
         next(auto: true);
         Future.delayed(
@@ -256,6 +275,8 @@ class PlayerState extends ChangeNotifier {
     if (_playing) {
       await pause();
     } else {
+      // 多设备同步（主控）：立即广播恢复播放，不等播放器状态流回调
+      SyncService.instance.notifyPlayingChanged(true);
       final h = _handler;
       if (h != null) {
         await h.play();
@@ -266,6 +287,8 @@ class PlayerState extends ChangeNotifier {
   }
 
   Future<void> pause() async {
+    // 多设备同步（主控）：立即广播暂停，不等播放器状态流回调
+    SyncService.instance.notifyPlayingChanged(false);
     final h = _handler;
     if (h != null) {
       await h.pause();
@@ -284,6 +307,8 @@ class PlayerState extends ChangeNotifier {
     _position = position;
     notifyListeners();
     MediaNotificationBridge.push(force: true);
+    // 多设备同步（主控）：拖动进度广播给被控
+    SyncService.instance.notifySeek(position);
   }
 
   /// 播放失败自动跳下一首（最多连跳 3 次防死循环）
@@ -312,6 +337,7 @@ class PlayerState extends ChangeNotifier {
     _current = song;
     _currentDetail = null;
     currentQuality = '';
+    currentPlayUrl = '';
     _lyrics = const [];
     _translation = const [];
     _position = Duration.zero;
@@ -319,6 +345,9 @@ class PlayerState extends ChangeNotifier {
     _buffered = Duration.zero;
     _loading = true;
     _error = null;
+    // 多设备同步（主控）：点歌瞬间立即广播新歌，不等 URL 解析/播放开始。
+    // 被控靠 song 元数据自己解析 URL，url 字段留空即可。
+    SyncService.instance.notifyPlay(song, '', playing: autoplay);
     notifyListeners();
 
     // 更新系统媒体通知（audio_service 元数据 + 自定义通知）
@@ -329,27 +358,29 @@ class PlayerState extends ChangeNotifier {
     unawaited(_loadDetail(song));
     unawaited(_loadLyric(song));
 
+    // 最终可播放地址（本地缓存直播时为空串；被控同步时优先自己解析）
+    String playUrl = '';
     try {
       // 缓存优先：本地有缓存直接播本地（离线/秒开）
       final cached = await MusicCache.cachedPath(song);
       if (cached != null) {
         await _player.setUrl(cached);
-        // 缓存时长校验：本地缓存明显短于歌曲真实时长
-        //（缓存 <40s 而真实 >40s）→ 判定为早期缓存的"30秒试听"片段，
-        // 删除缓存重新拉在线完整版，避免一直命中旧试听
+        // 缓存时长校验：
+        // 1. 试听片段（缓存 <40s 而真实 >40s）→ 删除
+        // 2. 错误版本（演唱会版/翻唱版，时长差 >10%）→ 删除
         final cachedDur = await _waitCachedDuration();
         final realMs = song.duration;
-        if (cachedDur != null &&
-            realMs > 40000 &&
-            cachedDur.inMilliseconds < 40000) {
-          debugPrint(
-              '缓存为试听片段(${cachedDur.inSeconds}s)，删除并重新拉流：${song.name}');
-          await MusicCache.removeFile(song);
-          await _startCurrent(autoplay: autoplay);
-          return;
+        if (cachedDur != null && realMs > 60000) {
+          final cachedMs = cachedDur.inMilliseconds;
+          final diffPct = (cachedMs - realMs).abs() / realMs;
+          if (cachedMs < 40000 || diffPct > 0.1) {
+            debugPrint('缓存时长异常(${cachedDur.inSeconds}s vs 真实${realMs ~/ 1000}s)，删除并重新拉流：${song.name}');
+            await MusicCache.removeFile(song);
+            await _startCurrent(autoplay: autoplay);
+            return;
+          }
         }
       } else {
-        String playUrl;
         if (song.isBilibili) {
           // B站源：优先带 Referer/UA/游客Cookie 直连 CDN（不占服务器流量）
           final info = await ApiService.biliStreamUrl(song.bvid!);
@@ -378,7 +409,7 @@ class PlayerState extends ChangeNotifier {
             playUrl = ApiService.proxyUrlOf(info.url);
             await _player.setUrl(playUrl);
           }
-          unawaited(_cacheSong(song, playUrl));
+          
         } else if (song.isQQ) {
           // QQ：/qq/song/url?mid=&name=&artist=&duration=
           // 必须带歌名/歌手/时长（后端靠它做 VIP 歌兜底匹配，返回实际音源）
@@ -402,7 +433,7 @@ class PlayerState extends ChangeNotifier {
             playUrl = ApiService.proxyUrlOf(qqUrl);
             await _player.setUrl(playUrl);
           }
-          unawaited(_cacheSong(song, playUrl));
+          
         } else if (song.isSoda) {
           // 汽水：/soda/song/url?id=&name=&artist=&duration=
           // 必须带歌名/歌手/时长（毫秒）——后端靠它做 VIP 歌换源匹配，返回实际音源
@@ -425,7 +456,7 @@ class PlayerState extends ChangeNotifier {
             playUrl = ApiService.proxyUrlOf(sodaUrl);
             await _player.setUrl(playUrl);
           }
-          unawaited(_cacheSong(song, playUrl));
+          
         } else if (song.isApple) {
           // Apple Music：不直取 Apple 流，按 歌名+歌手+时长 走换源链
           //（网易云直取 → 解锁源 → QQ/酷狗 → B站兜底，全在后端完成）
@@ -447,7 +478,7 @@ class PlayerState extends ChangeNotifier {
             playUrl = ApiService.proxyUrlOf(appleUrl);
             await _player.setUrl(playUrl);
           }
-          unawaited(_cacheSong(song, playUrl));
+          
         } else {
           // 网易云：优先直连真实 CDN（不占服务器带宽），失败回退服务器代理
           final info = await ApiService.songStreamInfo(
@@ -464,7 +495,7 @@ class PlayerState extends ChangeNotifier {
             playUrl = ApiService.proxyUrlOf(real);
             await _player.setUrl(playUrl);
           }
-          unawaited(_cacheSong(song, playUrl));
+          
         }
       }
       // 登记最近播放并修剪：缓存只保留最近播放的 30 首
@@ -479,6 +510,7 @@ class PlayerState extends ChangeNotifier {
       if (autoplay) {
         await _player.play();
       }
+      currentPlayUrl = playUrl;
     } catch (e) {
       _error = '播放失败：$e';
       _loading = false;
@@ -795,9 +827,119 @@ class PlayerState extends ChangeNotifier {
     }
   }
 
+  // ---------- 多设备同步：被控端执行主控命令（SyncPlayerDelegate） ----------
+
+  /// 被控正在应用一次换歌（解析 URL/setUrl 耗时数秒）。
+  /// 期间到达的心跳 seek/pause/resume 一律忽略：最终播放态由本次
+  /// syncPlay 确定，进度由加载完成后的下一条心跳纠正，避免命令打到
+  /// 半初始化的播放器上导致状态错乱（旧代码表现为"要手动暂停/播放才追上"）。
+  bool _syncBusy = false;
+
+  /// 加载期间收到的最后一个命令（加载完成后执行）
+  Map<String, dynamic>? _pendingCommand;
+
+  /// 播放指定歌曲并对齐进度。被控端自己通过现有接口解析 URL
+  /// （缓存/网易云/酷狗/QQ/汽水/Apple 全链路复用 _startCurrent）。
+  @override
+  bool get syncBusy => _syncBusy;
+
+  @override
+  Future<void> syncPlay(Song song, Duration at, bool autoplay) async {
+    if (_syncBusy) {
+      // 正在加载新歌曲，缓存这个 play 命令
+      // 但如果已经缓存了一个 play 命令，直接替换成最新的（最新的才是主控想要的）
+      _pendingCommand = {'type': 'play', 'song': song, 'at': at, 'autoplay': autoplay};
+      return;
+    }
+    _syncBusy = true;
+    try {
+      // 先 stop 重置播放器内部状态：清除旧歌的 playing/position，
+      // 避免 setUrl 时 playing 状态不一致导致"要手动点才追上"
+      // 加超时：播放器正在缓冲时 stop() 可能卡住，不能等太久
+      await _player.stop().timeout(const Duration(seconds: 2), onTimeout: () {
+        debugPrint('[sync] stop() 超时，强制继续切歌');
+      });
+      // 被控队列只保留主控下发的这一首：不污染用户本地队列，
+      // 也避免自然播完后 next() 自动播旧队列里的上一首/随机曲
+      _queue = [song];
+      _index = 0;
+      // 严格时序：URL 解析 + setUrl 完成（_startCurrent 内部），
+      // autoplay=false 时只加载不播放（不再"先播后停"抖动），最后 seek 对齐
+      // 加 10 秒超时：URL 加载卡住时强制继续，避免 _syncBusy 一直 true
+      await _startCurrent(autoplay: autoplay).timeout(const Duration(seconds: 10), onTimeout: () {
+        debugPrint('[sync] _startCurrent() 超时，强制继续切歌');
+        _loading = false;
+      });
+      if (at > Duration.zero) {
+        await seek(at);
+      }
+    } finally {
+      _syncBusy = false;
+      // 加载完成，执行缓存的命令
+      if (_pendingCommand != null) {
+        final cmd = _pendingCommand!;
+        _pendingCommand = null;
+        if (cmd['type'] == 'play') {
+          await syncPlay(cmd['song'], cmd['at'], cmd['autoplay']);
+        } else if (cmd['type'] == 'pause') {
+          await pause();
+        } else if (cmd['type'] == 'resume') {
+          await _player.play();
+        } else if (cmd['type'] == 'seek') {
+          await seek(cmd['position']);
+        }
+      }
+    }
+  }
+
+  @override
+  Future<void> syncPause() async {
+    if (_syncBusy) {
+      // 加载期间缓存 pause 命令
+      _pendingCommand = {'type': 'pause'};
+      return;
+    }
+    await pause();
+  }
+
+  @override
+  Future<void> syncResume() async {
+    if (_syncBusy) {
+      // 加载期间缓存 resume 命令
+      _pendingCommand = {'type': 'resume'};
+      return;
+    }
+    if (_current == null) return;
+    final h = _handler;
+    if (h != null) {
+      await h.play();
+    } else {
+      await _player.play();
+    }
+  }
+
+  @override
+  Future<void> syncSeek(Duration position) async {
+    if (_syncBusy) {
+      // 加载期间缓存 seek 命令
+      _pendingCommand = {'type': 'seek', 'position': position};
+      return;
+    }
+    await seek(position);
+  }
+
+  @override
+  SyncSnapshot snapshot() => SyncSnapshot(
+    song: _current,
+    url: currentPlayUrl,
+    position: _position,
+    playing: _playing,
+  );
+
   @override
   void dispose() {
     _player.dispose();
     super.dispose();
   }
 }
+

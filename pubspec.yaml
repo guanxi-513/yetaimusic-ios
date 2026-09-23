@@ -55,6 +55,28 @@ dependencies:
   flutter_displaymode: ^0.6.0
   # Apple Music 内嵌 WebView 登录（自带 WebViewCookieManager）
   webview_flutter: ^4.10.0
+  # 多设备同步：WebRTC DataChannel（局域网 P2P 控制信号）
+  flutter_webrtc: ^0.12.0
+  # 多设备同步：mDNS 局域网设备发现（广播 + 浏览）
+  bonsoir: ^5.1.6
+  # 多设备同步：读取设备型号作为同步设备名
+  device_info_plus: ^11.0.0
+  # 多设备同步：运行时申请位置权限（Android 12+ 枚举 Wi-Fi 接口/收集 IPv4 candidate）
+  permission_handler: ^11.3.1
+  # 应用图标自定义：相册/拍照选图
+  image_picker: ^1.1.2
+  # 应用图标自定义：正方形裁剪
+  crop_your_image: ^2.0.0
+  # 锁屏歌词：全屏悬浮窗（覆盖在锁屏之上，独立 Flutter 引擎渲染）
+  # 注意：flutter_overlay_window 原包 0.5.0 已停更，悬浮窗黑屏（引擎不渲染），
+  # 换用社区 fork flutter_screen_overlay（API 兼容，含 production stability patches）
+  flutter_screen_overlay: ^1.0.7
+
+# 本地 fork：给悬浮窗补 FLAG_SHOW_WHEN_LOCKED + FLAG_KEEP_SCREEN_ON
+# （部分 ROM 如 ColorOS/MIUI 要求 overlay 带此 flag 才允许显示在锁屏层）
+dependency_overrides:
+  flutter_screen_overlay:
+    path: third_party/flutter_screen_overlay
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +99,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    # 应用图标 3 张预设的设置页预览图
+    - assets/icons/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

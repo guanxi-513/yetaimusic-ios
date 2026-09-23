@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../services/music_cache.dart';
 import '../state/ui_settings.dart';
+import 'sync_log_page.dart';
 
 class DeveloperSettingsPage extends StatefulWidget {
   const DeveloperSettingsPage({super.key});
@@ -115,8 +116,10 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                 border: Border.all(color: fgPrimary.withOpacity(0.08)),
               ),
               child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 title: Text(
                   '歌曲缓存',
                   style: TextStyle(color: fgPrimary, fontSize: 14),
@@ -142,6 +145,37 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                           ),
                         ),
                       ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: bgCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: fgPrimary.withOpacity(0.08)),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                leading: Icon(Icons.list_alt, color: fgSecondary, size: 22),
+                title: Text(
+                  '多设备同步日志',
+                  style: TextStyle(color: fgPrimary, fontSize: 14),
+                ),
+                subtitle: Text(
+                  '实时查看 [SYNC] 连接日志，排查同步问题',
+                  style: TextStyle(color: fgTertiary, fontSize: 11),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: fgPrimary.withOpacity(0.6),
+                ),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SyncLogPage()),
+                ),
               ),
             ),
           ],

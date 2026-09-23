@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../models/song.dart';
 import '../pages/player_page.dart';
+import '../services/sync_service.dart';
 import '../state/player_state.dart';
 import '../state/ui_settings.dart';
 import 'tap_scale.dart';
@@ -26,14 +27,81 @@ class MiniPlayerBar extends StatelessWidget implements PreferredSizeWidget {
     final player = context.watch<PlayerState>();
     final song = player.current;
 
-    // 展开/收起平滑动画（无歌时收起为 0 高度）
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-      alignment: Alignment.bottomCenter,
-      child: song == null
-          ? const SizedBox(width: double.infinity)
-          : _Bar(player: player, song: song),
+    // 同步状态条：已同步时显示在播放条上方（🔗 同步中：xxx + 断开）
+    return ListenableBuilder(
+      listenable: SyncService.instance,
+      builder: (context, _) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (SyncService.instance.isSynced) const _SyncStrip(),
+          // 展开/收起平滑动画（无歌时收起为 0 高度）
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            alignment: Alignment.bottomCenter,
+            child: song == null
+                ? const SizedBox(width: double.infinity)
+                : _Bar(player: player, song: song),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 同步状态条：毛玻璃小胶囊「🔗 同步中：xxx」，右侧断开按钮
+class _SyncStrip extends StatelessWidget {
+  const _SyncStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final sync = SyncService.instance;
+    // 绿=WebRTC 点对点；黄=HTTP 长轮询兼容模式
+    final isHttp = sync.transport == SyncTransport.http;
+    final channelColor = isHttp
+        ? const Color(0xFFF5A623)
+        : const Color(0xFF1DB954);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: channelColor.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: channelColor.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isHttp ? Icons.autorenew : Icons.link,
+            color: channelColor,
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              sync.role == SyncRole.master
+                  ? '同步中：${sync.peerName}（主控）'
+                  : '同步中：${sync.peerName}（跟播）',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: fgPrimary, fontSize: 12),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => SyncService.instance.leave(),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Icon(
+                Icons.close,
+                color: fgPrimary.withOpacity(0.6),
+                size: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -64,14 +132,24 @@ class _Bar extends StatelessWidget {
         }
       },
       child: ListenableBuilder(
-        listenable: Listenable.merge([uiStyle, miniPlayerBottomOffset]),
+        listenable: Listenable.merge([
+          uiStyle,
+          miniPlayerBottomOffset,
+          globalBlur,
+        ]),
         builder: (context, _) {
           final plain = uiStyle.value == UiStyle.plain;
           final light = isLight;
+          // 全局背景模糊开关：plain/light 档本身无模糊；glass/transparent 档下
+          // 关闭后播放栏退化为实色容器（与 plain 同色 0xFF1A1C20）
+          final useBlur = globalBlur.value;
           return Container(
             // 底部间距跟随设置：默认 24，可在设置「自定义界面」自由调整
             margin: EdgeInsets.fromLTRB(
-              16, 0, 16, miniPlayerBottomOffset.value,
+              16,
+              0,
+              16,
+              miniPlayerBottomOffset.value,
             ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
@@ -107,7 +185,7 @@ class _Bar extends StatelessWidget {
                   )
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: plain
+                    child: (plain || !useBlur)
                         ? Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -138,10 +216,7 @@ class _Bar extends StatelessWidget {
                                 ),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: _BarContent(
-                                player: player,
-                                song: song,
-                              ),
+                              child: _BarContent(player: player, song: song),
                             ),
                           ),
                   ),
@@ -168,10 +243,7 @@ class _BarContent extends StatelessWidget {
           height: 42,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-              color: fgPrimary.withOpacity(0.35),
-              width: 1,
-            ),
+            border: Border.all(color: fgPrimary.withOpacity(0.35), width: 1),
           ),
           child: ClipOval(
             child: (player.currentDetail ?? song).cover.isEmpty
@@ -210,10 +282,7 @@ class _BarContent extends StatelessWidget {
                 song.artistText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: fgSecondary,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: fgSecondary, fontSize: 11),
               ),
             ],
           ),

@@ -1,22 +1,31 @@
 /// 首页：毛玻璃导航栏 + 四个子页（每日推荐 / 搜索 / 榜单 / 我的歌单）
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screen_overlay/flutter_screen_overlay.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../config.dart';
+import '../services/lock_screen_lyrics_service.dart';
 import '../state/auth_state.dart';
 import '../state/player_state.dart';
 import '../state/ui_settings.dart';
 import 'apple_music_login_page.dart';
 import 'charts_page.dart';
 import 'developer_settings_page.dart';
+import 'icon_settings_page.dart';
 import 'login_dialog.dart';
+import 'lock_log_page.dart';
 import 'playlists_page.dart';
 import 'recommend_view.dart';
 import 'search_page.dart';
+import 'sync_page.dart';
 import 'transition_settings_page.dart';
+import 'ui_customize_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -354,6 +363,27 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ],
               ),
             ),
+            // UI 高度自定义三级页入口
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'UI 高度自定义',
+                style: TextStyle(color: fgPrimary, fontSize: 14),
+              ),
+              subtitle: Text(
+                '背景模糊 · 二级页透明 · 播放页模糊 · 动画',
+                style: TextStyle(color: fgTertiary, fontSize: 11),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: fgPrimary.withOpacity(0.6),
+              ),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const UiCustomizePage()),
+                );
+              },
+            ),
             SizedBox(height: 8),
             ValueListenableBuilder<bool>(
               valueListenable: songCardBlur,
@@ -433,6 +463,86 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 onChanged: setKeepPlayingWithOtherApps,
               ),
             ),
+            // 锁屏歌词（网易云风格全屏歌词悬浮窗）
+            ValueListenableBuilder<bool>(
+              valueListenable: lockScreenLyrics,
+              builder: (_, value, __) => SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  '锁屏歌词',
+                  style: TextStyle(color: fgPrimary, fontSize: 14),
+                ),
+                subtitle: Text(
+                  '锁屏时显示全屏歌词；小米/红米需在系统设置中'
+                  '开启「锁屏显示」权限并将省电策略设为无限制',
+                  style: TextStyle(color: fgTertiary, fontSize: 11),
+                ),
+                value: value,
+                activeTrackColor: Color(0xFF1DB954),
+                activeThumbColor: fgPrimary,
+                inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                onChanged: (v) async {
+                  if (v) {
+                    // 1. 悬浮窗权限（显示歌词）
+                    if (await FlutterScreenOverlay.isPermissionGranted() !=
+                        true) {
+                      await FlutterScreenOverlay.requestPermission();
+                      if (await FlutterScreenOverlay.isPermissionGranted() !=
+                          true) {
+                        return; // 未授权不开启
+                      }
+                    }
+                    // 2. 电池优化白名单（防止锁屏后被系统杀进程，小米/OPPO/vivo 必须）
+                    if (await Permission.ignoreBatteryOptimizations.isGranted !=
+                        true) {
+                      unawaited(
+                        Permission.ignoreBatteryOptimizations.request(),
+                      );
+                    }
+                    await setLockScreenLyrics(true);
+                    // 3. 厂商特殊设置指引（自启动/省电策略/锁屏显示），首次开启弹一次
+                    if (!await LockScreenLyricsService.guideShown) {
+                      await LockScreenLyricsService.markGuideShown();
+                      if (context.mounted) _showLockPermissionGuide(context);
+                    }
+                  } else {
+                    await setLockScreenLyrics(false);
+                    await LockScreenLyricsService.onDisabled();
+                  }
+                },
+              ),
+            ),
+            // 锁屏歌词诊断：立即测试 + 权限指引 + 日志（开关开启时显示）
+            ValueListenableBuilder<bool>(
+              valueListenable: lockScreenLyrics,
+              builder: (_, value, __) => value
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () async {
+                            await LockScreenLyricsService.testShow();
+                          },
+                          child: const Text('立即测试'),
+                        ),
+                        TextButton(
+                          onPressed: () => _showLockPermissionGuide(context),
+                          child: const Text('权限指引'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const LockLogPage(),
+                              ),
+                            );
+                          },
+                          child: const Text('查看日志'),
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
             // 过渡动画三级设置入口
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -453,6 +563,53 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   MaterialPageRoute(
                     builder: (_) => const TransitionSettingsPage(),
                   ),
+                );
+              },
+            ),
+            // 多设备同步入口（局域网 WebRTC P2P 跟播）
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                '多设备同步',
+                style: TextStyle(color: fgPrimary, fontSize: 14),
+              ),
+              subtitle: Text(
+                '同一 Wi-Fi 下两台设备跟播同一首歌',
+                style: TextStyle(color: fgTertiary, fontSize: 11),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: fgPrimary.withOpacity(0.6),
+              ),
+              onTap: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const SyncPage()));
+              },
+            ),
+            // 应用图标入口（预设切换 / 自定义头像 / 桌面快捷方式）
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                '应用图标',
+                style: TextStyle(color: fgPrimary, fontSize: 14),
+              ),
+              subtitle: Text(
+                '预设图标切换 · 上传自定义头像 · 桌面快捷方式',
+                style: TextStyle(color: fgTertiary, fontSize: 11),
+              ),
+              leading: Icon(
+                Icons.dashboard_customize_outlined,
+                color: fgPrimary.withOpacity(0.75),
+                size: 22,
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: fgPrimary.withOpacity(0.6),
+              ),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const IconSettingsPage()),
                 );
               },
             ),
@@ -1210,4 +1367,101 @@ class _StyleOption extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 锁屏歌词厂商权限指引（悬浮窗 + 电池优化 + 自启动/锁屏显示）
+void _showLockPermissionGuide(BuildContext context) {
+  const sections = [
+    (
+      '小米 / 红米 (MIUI / HyperOS)',
+      [
+        '设置 → 应用设置 → 授权管理 → 应用权限管理 → '
+            '「锁屏显示」和「显示悬浮窗」→ 允许'
+            '（★ 关键：锁屏显示是单独权限，悬浮窗不包含它）',
+        '设置 → 应用设置 → 应用管理 → 本应用 → 省电策略 → 无限制',
+        '设置 → 应用设置 → 应用管理 → 本应用 → 自启动 → 允许',
+      ],
+    ),
+    (
+      'OPPO / 一加 (ColorOS)',
+      [
+        '设置 → 应用管理 → 悬浮窗管理 → 本应用 → 允许',
+        '设置 → 应用管理 → 特殊应用权限 → 「锁屏显示」→ 本应用 → 允许'
+            '（★ 关键：不开这个悬浮窗只在解锁后显示）',
+        '手机管家 → 权限隐私 → 悬浮窗 → 允许',
+        '手机管家 → 自启动 → 允许',
+        '设置 → 电池 → 应用电池管理 → 本应用 → 允许后台运行',
+      ],
+    ),
+    (
+      'vivo / iQOO (OriginOS)',
+      [
+        '设置 → 应用与权限 → 权限管理 → 悬浮窗 → 允许',
+        'i 管家 → 应用管理 → 权限管理 → 自启动 → 允许',
+        '设置 → 电池 → 后台耗电管理 → 本应用 → 允许后台高耗电',
+      ],
+    ),
+    (
+      '其他品牌（华为 / 荣耀 / 三星等）',
+      ['设置 → 应用 → 本应用 → 权限 → 悬浮窗 → 允许', '设置 → 电池 → 启动管理 → 关闭"自动管理"、允许后台运行'],
+    ),
+  ];
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: const Color(0xFF20242B),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        '锁屏歌词权限指引',
+        style: TextStyle(color: Color(0xFFF3F5F7), fontSize: 17),
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '请先授予悬浮窗和电池优化白名单权限，'
+                '再按你的手机品牌完成系统设置：',
+                style: TextStyle(color: Color(0xFFA8B0BA), fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              for (final (name, steps) in sections) ...[
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Color(0xFFE05A8A),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                for (var i = 0; i < steps.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '${i + 1}. ${steps[i]}',
+                      style: const TextStyle(
+                        color: Color(0xFFA8B0BA),
+                        fontSize: 12.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 10),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('知道了'),
+        ),
+      ],
+    ),
+  );
 }

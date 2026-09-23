@@ -32,9 +32,14 @@ final ValueNotifier<bool> songCardBlur = ValueNotifier<bool>(false);
 /// 打开抖音/视频等会抢音频焦点的应用时，本 App 的音乐不暂停、音量不变
 final ValueNotifier<bool> keepPlayingWithOtherApps = ValueNotifier<bool>(false);
 
+/// 锁屏歌词（默认 false）：锁屏亮屏时显示全屏歌词悬浮窗（网易云风格）
+final ValueNotifier<bool> lockScreenLyrics = ValueNotifier<bool>(false);
+
 /// 底部播放栏距屏幕底部的间距（单位 px，默认 24：比旧版固定 12 更远离导航栏）
 /// 越大播放栏越靠上，设置页「自定义界面」可调
-final ValueNotifier<double> miniPlayerBottomOffset = ValueNotifier<double>(24.0);
+final ValueNotifier<double> miniPlayerBottomOffset = ValueNotifier<double>(
+  24.0,
+);
 
 /// 应用音频焦点配置（启动时与开关切换时调用）：
 /// Android：开 = gainTransientMayDuck（共存，其他应用抢焦点时我们只收 duck 事件，
@@ -45,20 +50,22 @@ final ValueNotifier<double> miniPlayerBottomOffset = ValueNotifier<double>(24.0)
 Future<void> applyAudioFocusConfig() async {
   try {
     final session = await AudioSession.instance;
-    await session.configure(AudioSessionConfiguration(
-      avAudioSessionCategory: AVAudioSessionCategory.playback,
-      avAudioSessionCategoryOptions: keepPlayingWithOtherApps.value
-          ? AVAudioSessionCategoryOptions.mixWithOthers
-          : AVAudioSessionCategoryOptions.none,
-      androidAudioAttributes: const AndroidAudioAttributes(
-        contentType: AndroidAudioContentType.music,
-        usage: AndroidAudioUsage.media,
+    await session.configure(
+      AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionCategoryOptions: keepPlayingWithOtherApps.value
+            ? AVAudioSessionCategoryOptions.mixWithOthers
+            : AVAudioSessionCategoryOptions.none,
+        androidAudioAttributes: const AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          usage: AndroidAudioUsage.media,
+        ),
+        androidAudioFocusGainType: keepPlayingWithOtherApps.value
+            ? AndroidAudioFocusGainType.gainTransientMayDuck
+            : AndroidAudioFocusGainType.gain,
+        androidWillPauseWhenDucked: false,
       ),
-      androidAudioFocusGainType: keepPlayingWithOtherApps.value
-          ? AndroidAudioFocusGainType.gainTransientMayDuck
-          : AndroidAudioFocusGainType.gain,
-      androidWillPauseWhenDucked: false,
-    ));
+    );
     await session.setActive(true);
   } catch (_) {
     // 配置失败不影响播放（保持系统默认焦点行为）
@@ -75,6 +82,48 @@ final ValueNotifier<bool> transitionPage = ValueNotifier<bool>(true);
 
 /// 列表递进：歌曲项逐项上浮淡入
 final ValueNotifier<bool> transitionStagger = ValueNotifier<bool>(true);
+
+// ---------- UI 高度自定义开关（默认全开，可在「UI 高度自定义」三级页单独调整） ----------
+// 与上方过渡动画三开关区别：这些是更细粒度的视觉开关，控制全局/二级/播放页模糊与关闭动画。
+// 复用关系：卡片模糊→songCardBlur、打开动画→transitionHero、模糊过渡→transitionPage（这三项不再重复定义）。
+
+/// 全局背景模糊（mini player 毛玻璃层，默认 true）
+final ValueNotifier<bool> globalBlur = ValueNotifier<bool>(true);
+
+/// 二级页面背景透明（默认 true：透出下层封面模糊）
+final ValueNotifier<bool> secondaryTransparent = ValueNotifier<bool>(true);
+
+/// 播放页背景模糊（默认 true：player_page BackdropFilter sigma32）
+final ValueNotifier<bool> pageBlur = ValueNotifier<bool>(true);
+
+/// 关闭动画丝滑过渡（默认 true；预留接线位，当前仅持久化）
+final ValueNotifier<bool> closeAnimation = ValueNotifier<bool>(true);
+
+/// 播放页背景风格（独立于主题预设，强制覆盖）
+enum PlayerBgStyle {
+  /// 跟随主题预设：玻璃/透明档=封面模糊（或清晰封面），极简档=纯色
+  cover,
+
+  /// 暖白实色
+  white,
+
+  /// 纯黑实色
+  black,
+
+  /// 全透明：播放页透出下层（路由 opaque:false 已满足）
+  transparent,
+
+  /// 自定义颜色
+  custom,
+}
+
+/// 播放页背景风格（默认跟随预设，不破坏既有玻璃封面体验）
+final ValueNotifier<PlayerBgStyle> playerBgStyle = ValueNotifier<PlayerBgStyle>(
+  PlayerBgStyle.cover,
+);
+
+/// 自定义播放页背景色（ARGB int，默认深灰 0xFF1A1C20）
+final ValueNotifier<int> customPlayerBgColor = ValueNotifier<int>(0xFF1A1C20);
 
 // ---------- 主题色代理：随界面风格切换 ----------
 
@@ -121,11 +170,23 @@ Future<void> loadUiSettings() async {
   songCardBlur.value = prefs.getBool('song_card_blur') ?? false;
   keepPlayingWithOtherApps.value =
       prefs.getBool('keep_playing_with_other_apps') ?? false;
+  lockScreenLyrics.value = prefs.getBool('lock_screen_lyrics') ?? false;
   miniPlayerBottomOffset.value =
       prefs.getDouble('mini_player_bottom_offset') ?? 24.0;
   transitionHero.value = prefs.getBool('transition_hero') ?? true;
   transitionPage.value = prefs.getBool('transition_page') ?? true;
   transitionStagger.value = prefs.getBool('transition_stagger') ?? true;
+  globalBlur.value = prefs.getBool('global_blur') ?? true;
+  secondaryTransparent.value = prefs.getBool('secondary_transparent') ?? true;
+  pageBlur.value = prefs.getBool('page_blur') ?? true;
+  closeAnimation.value = prefs.getBool('close_animation') ?? true;
+  final bgStyleName = prefs.getString('player_bg_style');
+  playerBgStyle.value = PlayerBgStyle.values.firstWhere(
+    (e) => e.name == bgStyleName,
+    orElse: () => PlayerBgStyle.cover,
+  );
+  customPlayerBgColor.value =
+      prefs.getInt('custom_player_bg_color') ?? 0xFF1A1C20;
 }
 
 /// 切换「封面飞入」并持久化
@@ -171,9 +232,60 @@ Future<void> setKeepPlayingWithOtherApps(bool value) async {
   unawaited(applyAudioFocusConfig());
 }
 
+/// 切换「锁屏歌词」并持久化（悬浮窗权限申请由设置页处理）
+Future<void> setLockScreenLyrics(bool value) async {
+  lockScreenLyrics.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('lock_screen_lyrics', value);
+}
+
 /// 调整底部播放栏距底部的间距（px）并持久化；越大越靠上
 Future<void> setMiniPlayerBottomOffset(double value) async {
   miniPlayerBottomOffset.value = value;
   final prefs = await SharedPreferences.getInstance();
   await prefs.setDouble('mini_player_bottom_offset', value);
+}
+
+// ---------- UI 高度自定义开关的 setter（持久化） ----------
+
+/// 切换「全局背景模糊」并持久化
+Future<void> setGlobalBlur(bool value) async {
+  globalBlur.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('global_blur', value);
+}
+
+/// 切换「二级页面背景透明」并持久化
+Future<void> setSecondaryTransparent(bool value) async {
+  secondaryTransparent.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('secondary_transparent', value);
+}
+
+/// 切换「播放页背景模糊」并持久化
+Future<void> setPageBlur(bool value) async {
+  pageBlur.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('page_blur', value);
+}
+
+/// 切换「关闭动画丝滑过渡」并持久化
+Future<void> setCloseAnimation(bool value) async {
+  closeAnimation.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('close_animation', value);
+}
+
+/// 切换「播放页背景风格」并持久化
+Future<void> setPlayerBgStyle(PlayerBgStyle value) async {
+  playerBgStyle.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('player_bg_style', value.name);
+}
+
+/// 设置「播放页自定义背景色」（ARGB int）并持久化
+Future<void> setCustomPlayerBgColor(int value) async {
+  customPlayerBgColor.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setInt('custom_player_bg_color', value);
 }

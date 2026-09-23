@@ -172,6 +172,20 @@ class MusicCache {
     return n;
   }
 
+  /// 清理上次中断的 .part 残留文件（App 启动时调用）
+  static Future<void> cleanupPartFiles() async {
+    final dir = await _cacheDir();
+    try {
+      await for (final f in dir.list()) {
+        if (f is File && f.path.endsWith('.part')) {
+          try {
+            await f.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
   /// 清空全部缓存（含元数据），可选功能
   static Future<void> clearAll() async {
     final dir = await _cacheDir();

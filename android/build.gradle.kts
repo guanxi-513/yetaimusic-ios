@@ -25,6 +25,13 @@ subprojects {
             .findByType(com.android.build.gradle.LibraryExtension::class.java)
             ?.compileSdk = 36
     }
+    // 兜底：bonsoir_android 等老式插件在 apply plugin 之后的脚本体里
+    // 用 compileSdkVersion 33 覆盖了上面的值，求值结束后需再覆盖一次
+    project.afterEvaluate {
+        project.extensions
+            .findByType(com.android.build.gradle.LibraryExtension::class.java)
+            ?.compileSdk = 36
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")

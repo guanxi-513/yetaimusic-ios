@@ -2,12 +2,23 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <!-- 多设备同步：mDNS 局域网设备发现（部分 ROM 扫周围设备需要位置权限） -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- 多设备同步：mDNS 局域网设备发现（组播） -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
     <!-- 后台播放（audio_service 前台服务） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- Android 13+ 通知权限（MainActivity 启动时运行时申请） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- 锁屏歌词：悬浮窗权限（覆盖在锁屏之上） -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <!-- 锁屏歌词：电池优化白名单申请（防止锁屏后进程被杀） -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- 锁屏歌词：OverlayService 前台服务（specialUse 类型，Android 14+ 必需） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <application
         android:label="液态音乐"
         android:name="${applicationName}"
@@ -30,11 +41,47 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+        </activity>
+
+        <!-- 可切换桌面图标（Activity Alias）：同一时刻仅一个 enabled。
+             MainActivity 本身不挂 LAUNCHER，桌面入口全部走 alias。 -->
+        <activity-alias
+            android:name=".AliasDefault"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_default"
+            android:roundIcon="@mipmap/ic_launcher_default"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".AliasEyes"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_eyes"
+            android:roundIcon="@mipmap/ic_launcher_eyes"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".AliasSingle"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_single"
+            android:roundIcon="@mipmap/ic_launcher_single"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+
         <!-- audio_service 前台服务（后台播放 + 媒体会话 + 锁屏控制） -->
         <service
             android:name="com.ryanheise.audioservice.AudioService"
@@ -58,6 +105,29 @@
         <receiver
             android:name=".MediaNotificationReceiver"
             android:exported="false"/>
+        <!-- 锁屏歌词：全屏悬浮窗前台服务（flutter_overlay_window） -->
+        <service
+            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="lock_screen_lyrics_overlay"/>
+        </service>
+        <!-- 锁屏歌词：锁屏 Activity（网易云同款方案，显示在锁屏之上，
+             不需要悬浮窗权限、不受 ROM 锁屏层限制） -->
+        <activity
+            android:name=".LockScreenActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/LockScreenTheme"
+            android:showWhenLocked="true"
+            android:turnScreenOn="false"
+            android:hardwareAccelerated="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            tools:targetApi="o_mr1"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
