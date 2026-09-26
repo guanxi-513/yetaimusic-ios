@@ -4,9 +4,14 @@
 /// transitionHero/transitionPage，仅新增 globalBlur/secondaryTransparent/pageBlur/closeAnimation。
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../state/ui_settings.dart';
+import 'player_bg_crop_page.dart';
 
 class UiCustomizePage extends StatelessWidget {
   const UiCustomizePage({super.key});
@@ -271,6 +276,189 @@ class UiCustomizePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+                // ---- 自定义播放背景（图片） ----
+                _SectionLabel('自定义播放背景'),
+                const SizedBox(height: 6),
+                _buildCard(
+                  children: [
+                    // 预览 + 操作按钮
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 预览缩略图（9:16）
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: ValueListenableBuilder<String>(
+                              valueListenable: customPlayerBgImage,
+                              builder: (_, path, __) => SizedBox(
+                                width: 72,
+                                height: 128,
+                                child: path.isEmpty
+                                    ? Container(
+                                        color: fgPrimary.withOpacity(0.08),
+                                        child: Icon(
+                                          Icons.image_outlined,
+                                          color: fgTertiary,
+                                          size: 26,
+                                        ),
+                                      )
+                                    : Image.file(
+                                        File(path),
+                                        key: ValueKey('preview-$path'),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: fgPrimary.withOpacity(0.08),
+                                          child: Icon(
+                                            Icons.broken_image_outlined,
+                                            color: fgTertiary,
+                                            size: 26,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ValueListenableBuilder<String>(
+                              valueListenable: customPlayerBgImage,
+                              builder: (_, path, __) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    path.isEmpty ? '未设置（跟随上方背景色）' : '已设置自定义图片',
+                                    style: TextStyle(
+                                      color: fgPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '设置后任何主题预设下优先生效',
+                                    style: TextStyle(
+                                      color: fgTertiary,
+                                      fontSize: 11,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _SmallActionButton(
+                                        label: '选择图片',
+                                        onTap: () => _pickAndCropBg(context),
+                                      ),
+                                      if (path.isNotEmpty) ...[
+                                        _SmallActionButton(
+                                          label: '重新裁剪',
+                                          onTap: () => _recropBg(context, path),
+                                        ),
+                                        _SmallActionButton(
+                                          label: '清除',
+                                          danger: true,
+                                          onTap: () => _clearBg(path),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: playerBgOverlay,
+                      builder: (_, v, __) => SwitchListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                        ),
+                        title: Text(
+                          '半透明遮罩',
+                          style: TextStyle(color: fgPrimary, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          '在自定义图片上叠一层黑色遮罩，保证文字可读',
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
+                        ),
+                        value: v,
+                        activeTrackColor: const Color(0xFF1DB954),
+                        activeThumbColor: fgPrimary,
+                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                        onChanged: setPlayerBgOverlay,
+                      ),
+                    ),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: playerBgOverlay,
+                      builder: (_, overlayOn, __) =>
+                          ValueListenableBuilder<double>(
+                            valueListenable: playerBgOverlayOpacity,
+                            builder: (_, opacity, __) => Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '遮罩透明度',
+                                    style: TextStyle(
+                                      color: overlayOn
+                                          ? fgSecondary
+                                          : fgTertiary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: SliderTheme(
+                                      data: SliderThemeData(
+                                        trackHeight: 3,
+                                        thumbShape: const RoundSliderThumbShape(
+                                          enabledThumbRadius: 7,
+                                        ),
+                                        overlayShape:
+                                            const RoundSliderOverlayShape(
+                                              overlayRadius: 14,
+                                            ),
+                                      ),
+                                      child: Slider(
+                                        value: opacity,
+                                        min: 0.0,
+                                        max: 0.8,
+                                        divisions: 16,
+                                        activeColor: const Color(0xFF1DB954),
+                                        inactiveColor: fgPrimary.withOpacity(
+                                          0.12,
+                                        ),
+                                        onChanged: overlayOn
+                                            ? setPlayerBgOverlayOpacity
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 36,
+                                    child: Text(
+                                      '${(opacity * 100).round()}%',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        color: fgTertiary,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 // ---- 动画设置 ----
                 _SectionLabel('动画设置'),
                 const SizedBox(height: 6),
@@ -361,6 +549,59 @@ class UiCustomizePage extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
     );
+  }
+
+  // ---------- 自定义播放背景：选图 / 裁剪 / 保存 / 清除 ----------
+
+  /// 相册选图 → 9:16 裁剪 → 保存到应用目录并生效
+  Future<void> _pickAndCropBg(BuildContext context) async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2160,
+    );
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    if (!context.mounted) return;
+    final cropped = await Navigator.of(context).push<List<int>>(
+      MaterialPageRoute(builder: (_) => PlayerBgCropPage(imageBytes: bytes)),
+    );
+    if (cropped == null) return;
+    await _saveCroppedBg(cropped);
+  }
+
+  /// 对已设置的背景图重新裁剪
+  Future<void> _recropBg(BuildContext context, String path) async {
+    final file = File(path);
+    if (!await file.exists()) return;
+    final bytes = await file.readAsBytes();
+    if (!context.mounted) return;
+    final cropped = await Navigator.of(context).push<List<int>>(
+      MaterialPageRoute(builder: (_) => PlayerBgCropPage(imageBytes: bytes)),
+    );
+    if (cropped == null) return;
+    await _saveCroppedBg(cropped);
+  }
+
+  /// 保存裁剪结果：时间戳文件名避免图片缓存不刷新，同时删除旧文件
+  Future<void> _saveCroppedBg(List<int> bytes) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final oldPath = customPlayerBgImage.value;
+    final file = File(
+      '${dir.path}/custom_player_bg_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    await file.writeAsBytes(bytes, flush: true);
+    await setCustomPlayerBgImage(file.path);
+    if (oldPath.isNotEmpty) {
+      final oldFile = File(oldPath);
+      if (await oldFile.exists()) await oldFile.delete();
+    }
+  }
+
+  /// 清除自定义背景：删除文件 + 清空设置，恢复默认背景
+  Future<void> _clearBg(String path) async {
+    await setCustomPlayerBgImage('');
+    final file = File(path);
+    if (await file.exists()) await file.delete();
   }
 
   /// 内置选色器：预设色板 + RGB 三通道滑杆（无第三方依赖）
@@ -494,6 +735,42 @@ class UiCustomizePage extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 小号操作按钮（自定义背景：选择图片/重新裁剪/清除）
+class _SmallActionButton extends StatelessWidget {
+  const _SmallActionButton({
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? const Color(0xFFE53935) : const Color(0xFF1DB954);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.6), width: 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
     );
   }
 }

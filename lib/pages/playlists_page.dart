@@ -493,7 +493,7 @@ class _PlaylistsPageState extends State<PlaylistsPage>
     final sections = [...topSections, ...bottomSections];
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 10, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 80, 16, 16),
       children: [
         // 已登录音源分类在上，未登录（登录提示卡片）在下
         for (var i = 0; i < sections.length; i++) ...[

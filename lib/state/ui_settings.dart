@@ -125,6 +125,17 @@ final ValueNotifier<PlayerBgStyle> playerBgStyle = ValueNotifier<PlayerBgStyle>(
 /// 自定义播放页背景色（ARGB int，默认深灰 0xFF1A1C20）
 final ValueNotifier<int> customPlayerBgColor = ValueNotifier<int>(0xFF1A1C20);
 
+/// 自定义播放页背景图片路径（空串 = 未设置；设置后任何主题预设下优先生效）
+final ValueNotifier<String> customPlayerBgImage = ValueNotifier<String>('');
+
+/// 自定义背景图上的半透明黑遮罩（默认 true：保证歌词/控件可读）
+final ValueNotifier<bool> playerBgOverlay = ValueNotifier<bool>(true);
+
+/// 遮罩透明度（0.0~0.8，默认 0.35）
+final ValueNotifier<double> playerBgOverlayOpacity = ValueNotifier<double>(
+  0.35,
+);
+
 // ---------- 主题色代理：随界面风格切换 ----------
 
 /// 是否为极简白色（浅色主题）
@@ -187,6 +198,10 @@ Future<void> loadUiSettings() async {
   );
   customPlayerBgColor.value =
       prefs.getInt('custom_player_bg_color') ?? 0xFF1A1C20;
+  customPlayerBgImage.value = prefs.getString('custom_player_bg_image') ?? '';
+  playerBgOverlay.value = prefs.getBool('player_bg_overlay') ?? true;
+  playerBgOverlayOpacity.value =
+      prefs.getDouble('player_bg_overlay_opacity') ?? 0.35;
 }
 
 /// 切换「封面飞入」并持久化
@@ -288,4 +303,25 @@ Future<void> setCustomPlayerBgColor(int value) async {
   customPlayerBgColor.value = value;
   final prefs = await SharedPreferences.getInstance();
   await prefs.setInt('custom_player_bg_color', value);
+}
+
+/// 设置「自定义播放背景图片」路径并持久化（传空串 = 清除）
+Future<void> setCustomPlayerBgImage(String path) async {
+  customPlayerBgImage.value = path;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('custom_player_bg_image', path);
+}
+
+/// 切换「自定义背景半透明遮罩」并持久化
+Future<void> setPlayerBgOverlay(bool value) async {
+  playerBgOverlay.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('player_bg_overlay', value);
+}
+
+/// 调整「自定义背景遮罩透明度」（0.0~0.8）并持久化
+Future<void> setPlayerBgOverlayOpacity(double value) async {
+  playerBgOverlayOpacity.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setDouble('player_bg_overlay_opacity', value);
 }

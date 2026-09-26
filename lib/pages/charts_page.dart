@@ -1,4 +1,4 @@
-﻿/// 榜单页：固定榜单列表（玻璃卡片网格），点击进歌单详情
+/// 榜单页：固定榜单列表（玻璃卡片网格），点击进歌单详情
 library;
 
 import 'package:flutter/material.dart';
@@ -28,7 +28,7 @@ class _ChartsPageState extends State<ChartsPage>
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
+            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 80, 20, 10),
             child: Text(
               '排行榜',
               style: TextStyle(

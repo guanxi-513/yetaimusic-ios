@@ -78,6 +78,7 @@ Future<void> main() async {
   // 加载 UI 设置（歌曲卡片毛玻璃开关等）
   await loadUiSettings();
 
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

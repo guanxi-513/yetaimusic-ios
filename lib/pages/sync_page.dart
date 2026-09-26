@@ -541,6 +541,10 @@ class _SyncPageState extends State<SyncPage> {
   Widget _buildDriftThresholdCard() {
     final sync = SyncService.instance;
     final isMaster = sync.role == SyncRole.master;
+    // 已连接的被控：阈值由主控心跳统一下发（WebRTC 5s / HTTP 500ms 同步一次），
+    // 本地滑杆锁定，避免"两边各调各的"造成困惑
+    final followerLocked =
+        !isMaster && sync.role == SyncRole.follower && sync.isSynced;
     return AnimatedBuilder(
       animation: sync,
       builder: (context, _) {
@@ -595,6 +599,30 @@ class _SyncPageState extends State<SyncPage> {
                       ),
                     ),
                   ],
+                  if (followerLocked) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E88E5).withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFF1E88E5).withOpacity(0.5),
+                        ),
+                      ),
+                      child: const Text(
+                        '跟随主控',
+                        style: TextStyle(
+                          color: Color(0xFF1E88E5),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -622,7 +650,9 @@ class _SyncPageState extends State<SyncPage> {
                 isMaster
                     ? '进度偏差超过此值才 seek 修正。主控调整会通过心跳下发给被控统一生效。'
                           '${isDefault ? "推荐 250ms：听感无差异且不易卡顿。" : "低于 250ms 可能频繁 seek 导致卡顿。"}'
-                    : '进度偏差超过此值才 seek 修正。被控实际阈值由主控心跳下发统一管控。'
+                    : followerLocked
+                    ? '当前阈值由主控统一下发（主控端调整后自动同步到本机），被控端不单独调整。'
+                    : '进度偏差超过此值才 seek 修正。连接主控后将以主控下发的阈值为准。'
                           '${isDefault ? "推荐 250ms：听感无差异且不易卡顿。" : "低于 250ms 可能频繁 seek 导致卡顿。"}',
                 style: TextStyle(color: fgTertiary, fontSize: 11, height: 1.5),
               ),
@@ -641,11 +671,13 @@ class _SyncPageState extends State<SyncPage> {
                   divisions: 9, // 50, 100, 150, ..., 500
                   value: ms.toDouble(),
                   label: '$ms ms',
-                  // 两端均可拖动；主控端调整会通过心跳下发给被控统一生效，
-                  // 被控端本地调整临时生效（下次主控心跳到达会覆盖）
-                  onChanged: (v) async {
-                    await sync.setDriftThresholdMs(v.round());
-                  },
+                  // 主控端（或未连接时）可拖动；已连接的被控锁定——
+                  // 阈值由主控统一下发，本地调整只会被覆盖，徒增困惑
+                  onChanged: followerLocked
+                      ? null
+                      : (v) async {
+                          await sync.setDriftThresholdMs(v.round());
+                        },
                 ),
               ),
               Row(

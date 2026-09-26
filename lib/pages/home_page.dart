@@ -1,4 +1,4 @@
-/// 首页：毛玻璃导航栏 + 四个子页（每日推荐 / 搜索 / 榜单 / 我的歌单）
+﻿/// 首页：毛玻璃导航栏 + 四个子页（每日推荐 / 搜索 / 榜单 / 我的歌单）
 library;
 
 import 'dart:async' show unawaited;
@@ -71,12 +71,26 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          // 顶部毛玻璃导航栏
-          _GlassNavBar(
+    return Stack(
+      children: [
+        // 内容铺满全屏，从导航栏下方穿过
+        Positioned.fill(
+          child: IndexedStack(
+            index: _tab,
+            children: [
+              RecommendView(),
+              SearchPage(),
+              ChartsPage(),
+              PlaylistsPage(isActive: _tab == 3),
+            ],
+          ),
+        ),
+        // 导航栏悬浮在顶部
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          child: _GlassNavBar(
             labels: _titles,
             tabIndex: _tab,
             onTabChanged: (i) => setState(() => _tab = i),
@@ -88,21 +102,8 @@ class _HomePageState extends State<HomePage> {
                 auth.sodaLoggedIn,
             onAvatarTap: () => _showSettings(context),
           ),
-          // 内容区
-          Expanded(
-            child: IndexedStack(
-              index: _tab,
-              children: [
-                RecommendView(),
-                SearchPage(),
-                ChartsPage(),
-                // 传入可见状态：切回「我的」时强制刷新收藏/历史
-                PlaylistsPage(isActive: _tab == 3),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -131,17 +132,11 @@ class _GlassNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
     return Container(
-      margin: EdgeInsets.fromLTRB(16, 10, 16, 6),
+      margin: EdgeInsets.fromLTRB(16, topPad + 10, 16, 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.30),
-            blurRadius: 20,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
@@ -152,8 +147,8 @@ class _GlassNavBar extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: isLight
-                  ? [const Color(0xFFFFFFFF), const Color(0xFFFDFDFA)]
-                  : [fgPrimary.withOpacity(0.16), fgPrimary.withOpacity(0.06)],
+                  ? [const Color(0xFFFFFFFF).withOpacity(0.85), const Color(0xFFFDFDFA).withOpacity(0.85)]
+                  : [fgPrimary.withOpacity(0.20), fgPrimary.withOpacity(0.10)],
             ),
             border: Border.all(
               color: isLight

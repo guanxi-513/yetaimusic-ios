@@ -185,27 +185,27 @@ class _SearchPageState extends State<SearchPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Column(
-      children: [
-        // 搜索源切换器
-        _SourceSwitcher(
-          source: _source,
-          onChanged: _switchSource,
-        ),
-        // 毛玻璃搜索框
-        _GlassSearchField(
-          controller: _controller,
-          source: _source,
-          onChanged: _onChanged,
-          onSubmitted: (text) {
-            if (text.trim().isNotEmpty) {
-              _search(text.trim(), saveHistory: true);
-            }
-          },
-        ),
-        // 结果区
-        Expanded(child: _buildBody()),
-      ],
+    return Padding(
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 76),
+      child: Column(
+        children: [
+          _SourceSwitcher(
+            source: _source,
+            onChanged: _switchSource,
+          ),
+          _GlassSearchField(
+            controller: _controller,
+            source: _source,
+            onChanged: _onChanged,
+            onSubmitted: (text) {
+              if (text.trim().isNotEmpty) {
+                _search(text.trim(), saveHistory: true);
+              }
+            },
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
@@ -248,7 +248,7 @@ class _SearchPageState extends State<SearchPage>
     }
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       itemCount: _results.length + 1,
       itemBuilder: (context, i) {
         if (i == _results.length) {

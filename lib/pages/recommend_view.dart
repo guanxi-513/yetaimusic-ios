@@ -381,7 +381,7 @@ class _RecommendViewState extends State<RecommendView>
       onRefresh: _load,
       child: ReorderableListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
+        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 80, bottom: 100),
         buildDefaultDragHandles: false,
         itemCount: sections.length,
         onReorderItem: (oldIndex, newIndex) {

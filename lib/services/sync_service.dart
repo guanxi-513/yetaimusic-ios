@@ -43,6 +43,10 @@ abstract class SyncPlayerDelegate {
   /// 主控/被控据此决定是否更新歌曲去重标识、是否等待。
   bool get syncBusy;
 
+  /// 上一次 syncPlay 是否加载失败（URL 解析失败/超时）。
+  /// 同步层据此回滚歌曲去重标识，让心跳/轮询重试换歌。
+  bool get syncPlayFailed;
+
   /// 本机当前播放快照（主控心跳/被控漂移修正用）
   SyncSnapshot snapshot();
 }
@@ -56,11 +60,23 @@ class SyncSnapshot {
   final String url;
   final Duration position;
   final bool playing;
+
+  /// 切歌加载中（播放器半初始化：URL 解析/setUrl 进行中）
+  /// 此阶段不接受 seek/暂停/恢复等指令，避免打到半初始化播放器上
+  final bool loading;
+
+  /// 流式播放中的网络缓冲（播放器已就绪，边下边播）。
+  /// 与 loading 区分：缓冲时允许漂移修正追主控进度——seek 后从新位置
+  /// 继续拉流，与主控拖进度行为一致；loading 时播放器还不接受指令
+  final bool buffering;
+
   const SyncSnapshot({
     required this.song,
     required this.url,
     required this.position,
     required this.playing,
+    this.loading = false,
+    this.buffering = false,
   });
 }
 
@@ -393,6 +409,10 @@ class SyncService extends ChangeNotifier {
 
   /// HTTP 模式上次应用的歌曲标识（用于判断换歌 vs 心跳式对齐）
   String? _lastHttpSongKey;
+
+  /// 换歌加载失败重试：失败歌曲的 key 与已重试次数（成功或切歌清零）
+  String? _playRetryKey;
+  int _playRetryCount = 0;
 
   /// HTTP 模式：是否正在应用一次 /state（防重入，避免换歌加载时叠加）
   bool _applyingState = false;
@@ -1096,7 +1116,8 @@ class SyncService extends ChangeNotifier {
       );
       final r = await http.get(uri).timeout(_pollRequestTimeout);
       if (r.statusCode == 409) {
-        // 主控已与其他设备 1:1 同步
+        // 主控已与其他设备 1:1 同步（注：一对多改造后主控 /state 总是
+        // upsert guest、不再返回 409，此分支为 1:1 时代遗留，防御性保留——L5）
         _handleDisconnect('主控已与其他设备同步');
         return;
       }
@@ -1113,7 +1134,10 @@ class SyncService extends ChangeNotifier {
           _clockBurstBestRtt = rtt;
           _clockOffsetMs = serverTs - ((t0 + t1) ~/ 2);
         }
-      } else {
+      } else if (rtt <= 50) {
+        // ★ RTT 门控（M4 修复）：只采低延迟样本校准，避免单次抖动污染
+        //   offset → expected 偏移 → 假漂移误 seek。突发校准（8 轮取最小
+        //   RTT）已给出高精度基准；设备晶振漂移 ppm 级，长会话可忽略
         _clockOffsetMs = serverTs - ((t0 + t1) ~/ 2);
       }
 
@@ -1227,6 +1251,8 @@ class SyncService extends ChangeNotifier {
           'name': m['name'],
           'position': m['position'],
           'playing': m['playing'],
+          'loading': m['loading'],
+          'drift': m['drift'],
           'ts': m['ts'],
         });
       }
@@ -2017,7 +2043,32 @@ class SyncService extends ChangeNotifier {
         final autoplay = m['playing'] != false;
         if (song != null) {
           // 首选：带完整元数据 → 被控自己解析 URL（缓存/各源接口）
+          // ★ 更新歌曲去重标识，避免心跳重复检测到"换歌"
+          final key = _httpSongKey(m);
+          _lastHttpSongKey = key;
           await d.syncPlay(song, target, autoplay);
+          // ★ 换歌加载失败：回滚去重标识 → 下一条心跳/轮询重新检测到换歌并重试。
+          //   同一首限 3 次，防止对确实播不了的歌（VIP/下架）无限重试；成功清零
+          if (d.syncPlayFailed) {
+            if (_playRetryKey != key) {
+              _playRetryKey = key;
+              _playRetryCount = 0;
+            }
+            _playRetryCount++;
+            if (_playRetryCount <= 3) {
+              _lastHttpSongKey = null;
+              _log('换歌加载失败，将重试（$_playRetryCount/3）');
+            } else {
+              _log('换歌连续失败 3 次，停止重试，等待主控切歌');
+            }
+          } else {
+            _playRetryKey = null;
+            _playRetryCount = 0;
+            // 加载完成后的对齐由心跳侧负责：
+            // - 网络流加载完通常仍在缓冲 → 「缓冲中追主控」首条心跳即对齐
+            // - 本地缓存秒加载（无缓冲）→ 正常漂移修正兜底
+            // （旧"加载完成立即校准"已删：缓冲快路径覆盖后属冗余检查）
+          }
         } else {
           // 兜底：只有裸 URL（协议兼容）
           final url = m['url']?.toString() ?? '';
@@ -2046,6 +2097,8 @@ class SyncService extends ChangeNotifier {
         await _delegate?.syncResume();
         break;
       case 'seek':
+        // 切歌加载中（syncBusy）由 PlayerState 命令队列兜底：加载完成立即执行；
+        // 流式缓冲中直接 seek（播放器就绪，从新位置继续拉流）
         await _delegate?.syncSeek(_targetPosition(m));
         break;
       case 'heartbeat':
@@ -2055,7 +2108,12 @@ class SyncService extends ChangeNotifier {
           // 心跳现在带 song 信息——检测换歌（play 命令可能因
           // race/丢弃而漏掉，心跳作为兜底换歌通道）
           final key = _httpSongKey(m);
-          if (key != null &&
+          // ★ 主控无歌（song/url 均空）时 key='::'，跳过检测：
+          //   避免每条心跳触发无效换歌 + 日志刷屏（L1 修复）
+          final masterHasSong =
+              m['song'] is Map || (m['url']?.toString() ?? '').isNotEmpty;
+          if (masterHasSong &&
+              key != null &&
               key != _lastHttpSongKey &&
               _delegate?.syncBusy != true) {
             _lastHttpSongKey = key;
@@ -2080,6 +2138,13 @@ class SyncService extends ChangeNotifier {
             final snap = d.snapshot();
             final expected = _targetPosition(m);
             final remotePlaying = m['playing'] == true;
+            // ★ 仅切歌加载中（播放器半初始化）拦截：seek/暂停/恢复会打到
+            //   还没有音源的播放器上。流式缓冲（buffering）不拦截——
+            //   边下边播时照样追主控进度，seek 后从新位置继续拉流
+            if (snap.loading) break;
+            // ★ 主控缓冲/加载中：进度冻结、播放态是过渡态，跳过对齐，
+            //   避免被控把主控的临时状态当成真实意图（回拉/误暂停）
+            if (m['loading'] == true) break;
             if (remotePlaying != snap.playing) {
               remotePlaying ? await d.syncResume() : await d.syncPause();
             }
@@ -2088,22 +2153,34 @@ class SyncService extends ChangeNotifier {
             // 1. 阈值（默认 250ms，UI 可调 50-500）：低于此值听感无差异，不修正
             // 2. 冷却 3s：两次 seek 修正之间至少间隔 3 秒
             // 3. 连续 2 次超阈值才修正：避免单次网络抖动触发误修正
+            //    （缓冲中豁免此项：没有平滑音频可保护，即时追主控）
             final threshold = Duration(milliseconds: _driftThresholdMs);
             if (remotePlaying && drift.abs() > threshold) {
-              _driftOverCount++;
               final now = DateTime.now();
               final cooldownPassed =
                   _lastDriftSeekAt == null ||
                   now.difference(_lastDriftSeekAt!) > _driftSeekCooldown;
-              if (_driftOverCount >= 2 && cooldownPassed) {
-                _log(
-                  '漂移修正 ${drift.inMilliseconds}ms（连续 $_driftOverCount 次超阈值）',
-                );
-                await d.syncSeek(expected);
-                _lastDriftSeekAt = now;
-                _driftOverCount = 0;
-              } else if (!cooldownPassed) {
-                // 冷却中，跳过本次但保留计数（下次心跳若仍超阈值会再判）
+              if (snap.buffering) {
+                // ★ 缓冲中即时追主控：落后就 seek 到主控位置，
+                //   从新位置继续拉流；仅受冷却 3s 限制防 seek 风暴
+                if (cooldownPassed) {
+                  _log('缓冲中追主控 ${drift.inMilliseconds}ms');
+                  await d.syncSeek(expected);
+                  _lastDriftSeekAt = now;
+                  _driftOverCount = 0;
+                }
+              } else {
+                _driftOverCount++;
+                if (_driftOverCount >= 2 && cooldownPassed) {
+                  _log(
+                    '漂移修正 ${drift.inMilliseconds}ms（连续 $_driftOverCount 次超阈值）',
+                  );
+                  await d.syncSeek(expected);
+                  _lastDriftSeekAt = now;
+                  _driftOverCount = 0;
+                } else if (!cooldownPassed) {
+                  // 冷却中，跳过本次但保留计数（下次心跳若仍超阈值会再判）
+                }
               }
             } else {
               // 偏差在阈值内，重置连续计数
@@ -2225,6 +2302,9 @@ class SyncService extends ChangeNotifier {
         'type': 'heartbeat',
         'position': (snap?.position.inMilliseconds ?? 0) / 1000.0,
         'playing': snap?.playing ?? false,
+        // 主控加载/缓冲中：进度与播放态均为过渡态，被控据此跳过对齐
+        // （不追冻结的进度，避免主控缓冲恢复后来回拉扯）
+        'loading': (snap?.loading ?? false) || (snap?.buffering ?? false),
         'ts': DateTime.now().millisecondsSinceEpoch,
         'song': song?.toJson(),
         'url': snap?.url ?? '',
@@ -2249,6 +2329,11 @@ class SyncService extends ChangeNotifier {
       'song': song?.toJson(),
       'position': (snap?.position.inMilliseconds ?? 0) / 1000.0,
       'playing': snap?.playing ?? false,
+      // 主控加载/缓冲中标记（被控心跳对齐守卫依赖，与 WebRTC heartbeat 一致）
+      'loading': (snap?.loading ?? false) || (snap?.buffering ?? false),
+      // ★ 主控下发漂移阈值（此前 HTTP 模式漏传此字段，导致被控阈值
+      //   永远收不到主控统一下发——与 WebRTC heartbeat 同语义）
+      'drift': _driftThresholdMs,
       'ts': DateTime.now().millisecondsSinceEpoch,
       'deviceName': _deviceName,
     };

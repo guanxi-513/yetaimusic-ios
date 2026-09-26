@@ -13,7 +13,7 @@
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
     </style>
     <!-- 锁屏歌词 Activity：透明背景（Flutter 端画半透明黑），锁屏初始化期间透出壁纸 -->
     <style name="LockScreenTheme" parent="@android:style/Theme.Black.NoTitleBar">

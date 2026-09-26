@@ -1,6 +1,7 @@
 /// 播放页：大封面 + 玻璃控制按钮 + 纤细磨砂进度条 + 歌词自动滚动
 library;
 
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -211,8 +212,37 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                         pageBlur,
                         playerBgStyle,
                         customPlayerBgColor,
+                        customPlayerBgImage,
+                        playerBgOverlay,
+                        playerBgOverlayOpacity,
                       ]),
                       builder: (context, _) {
+                        // 自定义背景图片优先级最高：设置后任何主题预设下生效；
+                        // 文件缺失/解码失败时 errorBuilder 回退到下方常规背景
+                        if (customPlayerBgImage.value.isNotEmpty) {
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                File(customPlayerBgImage.value),
+                                key: ValueKey(
+                                  'custombg-${customPlayerBgImage.value}',
+                                ),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _buildCoverBackground(song),
+                              ),
+                              // 半透明黑遮罩（开关 + 可调透明度，保证文字可读）
+                              if (playerBgOverlay.value)
+                                ColoredBox(
+                                  color: Colors.black.withOpacity(
+                                    playerBgOverlayOpacity.value,
+                                  ),
+                                  child: const SizedBox.expand(),
+                                ),
+                            ],
+                          );
+                        }
                         switch (playerBgStyle.value) {
                           case PlayerBgStyle.transparent:
                             // 全透明：直接透出下层首页（路由 opaque:false）
