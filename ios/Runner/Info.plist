@@ -37,6 +37,9 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<!-- 访问相册：自定义播放背景图选图 -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于从相册选择自定义播放背景图</string>
 	<!-- WebView 加载 Apple Music 登录页需要网络权限描述（iOS 14+ 局域网提示文案） -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>用于连接你配置的音源服务地址（局域网或自建服务器）</string>
