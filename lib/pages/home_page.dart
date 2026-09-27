@@ -1,6 +1,5 @@
 ﻿/// 首页：毛玻璃导航栏 + 四个子页（每日推荐 / 搜索 / 榜单 / 我的歌单）
 library;
-import 'dart:ui' as ui;
 
 import 'dart:async' show unawaited;
 
@@ -28,6 +27,7 @@ import 'search_page.dart';
 import 'sync_page.dart';
 import 'transition_settings_page.dart';
 import 'ui_customize_page.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -163,52 +163,52 @@ class _GlassNavBar extends StatelessWidget {
     final topPad = MediaQuery.of(context).padding.top;
     return Container(
       margin: EdgeInsets.fromLTRB(16, topPad + 10, 16, 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            color: Colors.black.withOpacity(0.15),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            child: Row(
-              children: [
-                Text('液态音乐', style: TextStyle(color: fgPrimary, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
-                const SizedBox(width: 8),
-                ...List.generate(labels.length, (i) {
-                  final selected = tabIndex == i;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: GestureDetector(
-                      onTap: () => onTabChanged(i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut,
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: selected ? fgPrimary.withOpacity(0.28) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(13),
-                          border: Border.all(color: selected ? fgPrimary.withOpacity(0.4) : fgPrimary.withOpacity(0.12)),
-                        ),
-                        child: Text(labels[i], style: TextStyle(color: selected ? fgPrimary : fgPrimary.withOpacity(0.55), fontSize: 11, fontWeight: FontWeight.w600)),
-                      ),
-                    ),
-                  );
-                }),
-                const Spacer(),
-                GestureDetector(
-                  onTap: onAvatarTap,
-                  child: Container(
-                    width: 34, height: 34,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: fgPrimary.withOpacity(0.14), border: Border.all(color: fgPrimary.withOpacity(0.3))),
-                    child: (avatarUrl != null && avatarUrl!.isNotEmpty)
-                        ? ClipOval(child: CachedNetworkImage(imageUrl: avatarUrl!, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.person, color: fgPrimary.withOpacity(0.85), size: 18)))
-                        : Icon(anyLoggedIn ? Icons.person : Icons.settings, color: fgPrimary.withOpacity(0.85), size: 18),
-                  ),
-                ),
-              ],
+      child: Row(
+        children: [
+          Text(
+            '液态音乐',
+            style: TextStyle(
+              color: fgPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: GlassSegmentedControl(
+              segments: labels.map((l) => GlassSegment(label: l)).toList(),
+              selectedIndex: tabIndex,
+              onSegmentSelected: (i) => onTabChanged(i),
+              height: 36,
+              quality: GlassQuality.premium,
+              settings: LiquidGlassSettings(thickness: 40, blur: 8, refractiveIndex: 1.6),
+              indicatorSettings: LiquidGlassSettings(thickness: 30, blur: 4, refractiveIndex: 1.5),
+              interactionBehavior: GlassInteractionBehavior.full,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: fgPrimary.withOpacity(0.14),
+                border: Border.all(color: fgPrimary.withOpacity(0.3)),
+              ),
+              child: (avatarUrl != null && avatarUrl!.isNotEmpty)
+                  ? ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: avatarUrl!,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Icon(Icons.person, color: fgPrimary.withOpacity(0.85), size: 18),
+                      ),
+                    )
+                  : Icon(anyLoggedIn ? Icons.person : Icons.settings, color: fgPrimary.withOpacity(0.85), size: 18),
+            ),
+          ),
+        ],
       ),
     );
   }
