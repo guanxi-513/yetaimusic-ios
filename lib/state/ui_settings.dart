@@ -90,6 +90,11 @@ final ValueNotifier<bool> transitionStagger = ValueNotifier<bool>(true);
 /// 全局背景模糊（mini player 毛玻璃层，默认 true）
 final ValueNotifier<bool> globalBlur = ValueNotifier<bool>(true);
 
+/// 导航栏液态玻璃（默认 true）：GLSL 着色器光学效果（折射/色散镶边/手势跟随高光/
+/// 滚动视差/过渡动画）。关闭后降级为普通毛玻璃（仅 BackdropFilter 模糊），
+/// 牺牲质感以换取性能——低端机可关闭。
+final ValueNotifier<bool> liquidGlassNav = ValueNotifier<bool>(true);
+
 /// 二级页面背景透明（默认 true：透出下层封面模糊）
 final ValueNotifier<bool> secondaryTransparent = ValueNotifier<bool>(true);
 
@@ -188,6 +193,7 @@ Future<void> loadUiSettings() async {
   transitionPage.value = prefs.getBool('transition_page') ?? true;
   transitionStagger.value = prefs.getBool('transition_stagger') ?? true;
   globalBlur.value = prefs.getBool('global_blur') ?? true;
+  liquidGlassNav.value = prefs.getBool('liquid_glass_nav') ?? true;
   secondaryTransparent.value = prefs.getBool('secondary_transparent') ?? true;
   pageBlur.value = prefs.getBool('page_blur') ?? true;
   closeAnimation.value = prefs.getBool('close_animation') ?? true;
@@ -268,6 +274,13 @@ Future<void> setGlobalBlur(bool value) async {
   globalBlur.value = value;
   final prefs = await SharedPreferences.getInstance();
   await prefs.setBool('global_blur', value);
+}
+
+/// 切换「导航栏液态玻璃」并持久化
+Future<void> setLiquidGlassNav(bool value) async {
+  liquidGlassNav.value = value;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('liquid_glass_nav', value);
 }
 
 /// 切换「二级页面背景透明」并持久化

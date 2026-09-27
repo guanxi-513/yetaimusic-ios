@@ -125,6 +125,29 @@ class UiCustomizePage extends StatelessWidget {
                     ),
                     Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
                     ValueListenableBuilder<bool>(
+                      valueListenable: liquidGlassNav,
+                      builder: (_, v, __) => SwitchListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                        ),
+                        title: Text(
+                          '导航栏液态玻璃',
+                          style: TextStyle(color: fgPrimary, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          'GLSL 着色器光学效果（折射/色散镶边/手势跟随高光/滚动视差/过渡动画）；'
+                          '关闭后降级为普通毛玻璃，提升低端机性能',
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
+                        ),
+                        value: v,
+                        activeTrackColor: const Color(0xFF1DB954),
+                        activeThumbColor: fgPrimary,
+                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                        onChanged: setLiquidGlassNav,
+                      ),
+                    ),
+                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                    ValueListenableBuilder<bool>(
                       valueListenable: secondaryTransparent,
                       builder: (_, v, __) => SwitchListTile(
                         contentPadding: const EdgeInsets.symmetric(

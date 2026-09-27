@@ -1,9 +1,11 @@
 ﻿/// 首页：毛玻璃导航栏 + 四个子页（每日推荐 / 搜索 / 榜单 / 我的歌单）
 library;
+import 'dart:ui' as ui;
 
 import 'dart:async' show unawaited;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_screen_overlay/flutter_screen_overlay.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -36,6 +38,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _tab = 0;
+
+  /// 内容滚动视差（0..1），驱动导航栏液态玻璃的滚动视差折射；
+  /// 用 ValueNotifier 避免每次滚动都重建整个导航栏与 BackdropFilter。
+  final ValueNotifier<double> _scrollParallax = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _scrollParallax.dispose();
+    super.dispose();
+  }
 
   /// 记录上次登录态，检测到变化时同步云收藏集合：
   /// - 登录（含 App 启动时 cookie 恢复登录）→ 拉取网易云喜欢列表，
@@ -75,14 +87,27 @@ class _HomePageState extends State<HomePage> {
       children: [
         // 内容铺满全屏，从导航栏下方穿过
         Positioned.fill(
-          child: IndexedStack(
-            index: _tab,
-            children: [
-              RecommendView(),
-              SearchPage(),
-              ChartsPage(),
-              PlaylistsPage(isActive: _tab == 3),
-            ],
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              if (n is ScrollUpdateNotification &&
+                  n.metrics.axis == Axis.vertical) {
+                // 800px 作为归一化基准：0 顶部 → 1 已滚动相当距离
+                _scrollParallax.value = (n.metrics.pixels / 800.0).clamp(
+                  0.0,
+                  1.0,
+                );
+              }
+              return false;
+            },
+            child: IndexedStack(
+              index: _tab,
+              children: [
+                RecommendView(),
+                SearchPage(),
+                ChartsPage(),
+                PlaylistsPage(isActive: _tab == 3),
+              ],
+            ),
           ),
         ),
         // 导航栏悬浮在顶部
@@ -93,6 +118,7 @@ class _HomePageState extends State<HomePage> {
           child: _GlassNavBar(
             labels: _titles,
             tabIndex: _tab,
+            scrollFraction: _scrollParallax,
             onTabChanged: (i) => setState(() => _tab = i),
             avatarUrl: auth.user?.avatar,
             anyLoggedIn:
@@ -116,6 +142,7 @@ class _HomePageState extends State<HomePage> {
 class _GlassNavBar extends StatelessWidget {
   final List<String> labels;
   final int tabIndex;
+  final ValueListenable<double> scrollFraction;
   final ValueChanged<int> onTabChanged;
   final String? avatarUrl;
   final bool anyLoggedIn;
@@ -124,6 +151,7 @@ class _GlassNavBar extends StatelessWidget {
   _GlassNavBar({
     required this.labels,
     required this.tabIndex,
+    required this.scrollFraction,
     required this.onTabChanged,
     required this.avatarUrl,
     required this.anyLoggedIn,
@@ -135,120 +163,50 @@ class _GlassNavBar extends StatelessWidget {
     final topPad = MediaQuery.of(context).padding.top;
     return Container(
       margin: EdgeInsets.fromLTRB(16, topPad + 10, 16, 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isLight
-                  ? [const Color(0xFFFFFFFF).withOpacity(0.85), const Color(0xFFFDFDFA).withOpacity(0.85)]
-                  : [fgPrimary.withOpacity(0.20), fgPrimary.withOpacity(0.10)],
-            ),
-            border: Border.all(
-              color: isLight
-                  ? const Color(0xFFE4E3DD)
-                  : fgPrimary.withOpacity(0.25),
-              width: 1,
-            ),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Row(
-            children: [
-              // App 标题
-              Text(
-                '液态音乐',
-                style: TextStyle(
-                  color: fgPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // 分段切换
-              ...List.generate(labels.length, (i) {
-                final selected = tabIndex == i;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: GestureDetector(
-                    onTap: () => onTabChanged(i),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? fgPrimary.withOpacity(0.28)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(13),
-                        border: Border.all(
-                          color: selected
-                              ? fgPrimary.withOpacity(0.4)
-                              : fgPrimary.withOpacity(0.12),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            color: Colors.black.withOpacity(0.15),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
+              children: [
+                Text('液态音乐', style: TextStyle(color: fgPrimary, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
+                const SizedBox(width: 8),
+                ...List.generate(labels.length, (i) {
+                  final selected = tabIndex == i;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: GestureDetector(
+                      onTap: () => onTabChanged(i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOut,
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: selected ? fgPrimary.withOpacity(0.28) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(color: selected ? fgPrimary.withOpacity(0.4) : fgPrimary.withOpacity(0.12)),
                         ),
-                      ),
-                      child: Text(
-                        labels[i],
-                        style: TextStyle(
-                          color: selected
-                              ? fgPrimary
-                              : fgPrimary.withOpacity(0.55),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        child: Text(labels[i], style: TextStyle(color: selected ? fgPrimary : fgPrimary.withOpacity(0.55), fontSize: 11, fontWeight: FontWeight.w600)),
                       ),
                     ),
+                  );
+                }),
+                const Spacer(),
+                GestureDetector(
+                  onTap: onAvatarTap,
+                  child: Container(
+                    width: 34, height: 34,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: fgPrimary.withOpacity(0.14), border: Border.all(color: fgPrimary.withOpacity(0.3))),
+                    child: (avatarUrl != null && avatarUrl!.isNotEmpty)
+                        ? ClipOval(child: CachedNetworkImage(imageUrl: avatarUrl!, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.person, color: fgPrimary.withOpacity(0.85), size: 18)))
+                        : Icon(anyLoggedIn ? Icons.person : Icons.settings, color: fgPrimary.withOpacity(0.85), size: 18),
                   ),
-                );
-              }),
-              const Spacer(),
-              // 头像 / 设置入口
-              GestureDetector(
-                onTap: onAvatarTap,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: fgPrimary.withOpacity(0.14),
-                    border: Border.all(
-                      color: fgPrimary.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: (avatarUrl != null && avatarUrl!.isNotEmpty)
-                      ? ClipOval(
-                          child: CachedNetworkImage(
-                            imageUrl: avatarUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Icon(
-                              Icons.person,
-                              color: fgPrimary.withOpacity(0.85),
-                              size: 18,
-                            ),
-                            errorWidget: (_, __, ___) => Icon(
-                              Icons.person,
-                              color: fgPrimary.withOpacity(0.85),
-                              size: 18,
-                            ),
-                          ),
-                        )
-                      : Icon(
-                          // 已有任一音源登录 → 用户图标；否则设置图标
-                          anyLoggedIn ? Icons.person : Icons.settings,
-                          color: fgPrimary.withOpacity(0.85),
-                          size: 18,
-                        ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

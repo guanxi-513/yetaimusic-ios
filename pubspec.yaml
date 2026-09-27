@@ -71,6 +71,7 @@ dependencies:
   # 注意：flutter_overlay_window 原包 0.5.0 已停更，悬浮窗黑屏（引擎不渲染），
   # 换用社区 fork flutter_screen_overlay（API 兼容，含 production stability patches）
   flutter_screen_overlay: ^1.0.7
+  liquid_glass_widgets: ^1.7.2
 
 # 本地 fork：给悬浮窗补 FLAG_SHOW_WHEN_LOCKED + FLAG_KEEP_SCREEN_ON
 # （部分 ROM 如 ColorOS/MIUI 要求 overlay 带此 flag 才允许显示在锁屏层）
@@ -103,6 +104,10 @@ flutter:
   assets:
     # 应用图标 3 张预设的设置页预览图
     - assets/icons/
+
+  # 片段着色器（导航栏液态玻璃光学效果）
+  shaders:
+    - assets/shaders/liquid_glass.frag
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,5 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -105,9 +106,10 @@ Future<void> main() async {
   unawaited(SyncService.instance.loadSettings());
   // 读取当前桌面图标 alias 与自定义头像（启动页要显示）
   unawaited(AppIconService.instance.init());
+  await LiquidGlassWidgets.initialize();
+  runApp(LiquidGlassWidgets.wrap(child: const LiquidMusicApp()));
 
-  // 先显示首屏；audio_service 在后台初始化，不再阻塞启动
-  runApp(const LiquidMusicApp());
+
   unawaited(_initAudioService());
 }
 
