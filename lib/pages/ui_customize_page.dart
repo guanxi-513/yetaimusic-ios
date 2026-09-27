@@ -1,4 +1,4 @@
-/// UI 高度自定义（三级页）：主题预设 + 独立开关，自由组合视觉风格
+﻿/// UI 高度自定义（三级页）：主题预设 + 独立开关，自由组合视觉风格
 /// 与 [TransitionSettingsPage] 同级，从设置抽屉「自定义界面」分区 push 进入。
 /// 设计原则：不新增预设枚举，复用现有 UiStyle 四档；独立开关复用 songCardBlur/
 /// transitionHero/transitionPage，仅新增 globalBlur/secondaryTransparent/pageBlur/closeAnimation。
@@ -7,11 +7,13 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../state/ui_settings.dart';
 import 'player_bg_crop_page.dart';
+import 'nav_glass_settings_page.dart';
 
 class UiCustomizePage extends StatelessWidget {
   const UiCustomizePage({super.key});
@@ -124,29 +126,52 @@ class UiCustomizePage extends StatelessWidget {
                       ),
                     ),
                     Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text('如果不知道用哪个好看，随便选一个就可以了(*^_^*)', style: TextStyle(color: fgTertiary, fontSize: 12)),
+                    ),
                     ValueListenableBuilder<bool>(
-                      valueListenable: liquidGlassNav,
+                      valueListenable: navFlatStyle,
                       builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '导航栏液态玻璃',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          'GLSL 着色器光学效果（折射/色散镶边/手势跟随高光/滚动视差/过渡动画）；'
-                          '关闭后降级为普通毛玻璃，提升低端机性能',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        title: Text('纯色扁平风格', style: TextStyle(color: fgPrimary, fontSize: 14)),
+                        subtitle: Text('导航栏纯底色，无玻璃无模糊，最简洁', style: TextStyle(color: fgTertiary, fontSize: 11)),
                         value: v,
                         activeTrackColor: const Color(0xFF1DB954),
                         activeThumbColor: fgPrimary,
                         inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setLiquidGlassNav,
+                        onChanged: (val) async {
+                          navFlatStyle.value = val;
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('nav_flat_style', val);
+                        },
                       ),
                     ),
                     Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: navSimpleGlass,
+                      builder: (_, v, __) => SwitchListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        title: Text('普通毛玻璃模式', style: TextStyle(color: fgPrimary, fontSize: 14)),
+                        subtitle: Text('关闭液态玻璃折射，提升低端机流畅度', style: TextStyle(color: fgTertiary, fontSize: 11)),
+                        value: v,
+                        activeTrackColor: const Color(0xFF1DB954),
+                        activeThumbColor: fgPrimary,
+                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                        onChanged: (val) async {
+                          navSimpleGlass.value = val;
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('nav_simple_glass', val);
+                        },
+                      ),
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      title: Text('导航栏玻璃参数微调', style: TextStyle(color: fgPrimary, fontSize: 14)),
+                      subtitle: Text('厚度/模糊/折射/边缘高光/辉光，实时预览', style: TextStyle(color: fgTertiary, fontSize: 11)),
+                      trailing: Icon(Icons.chevron_right, color: fgSecondary),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NavGlassSettingsPage())),
+                    ),
                     ValueListenableBuilder<bool>(
                       valueListenable: secondaryTransparent,
                       builder: (_, v, __) => SwitchListTile(

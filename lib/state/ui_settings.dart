@@ -141,6 +141,47 @@ final ValueNotifier<double> playerBgOverlayOpacity = ValueNotifier<double>(
   0.35,
 );
 
+// ---------- 导航栏液态玻璃参数（全部可调） ----------
+
+/// 轨道玻璃厚度
+final ValueNotifier<double> navGlassThickness = ValueNotifier<double>(25);
+
+/// 轨道模糊
+final ValueNotifier<double> navGlassBlur = ValueNotifier<double>(6);
+
+/// 轨道折射率
+final ValueNotifier<double> navGlassRefractiveIndex = ValueNotifier<double>(1.3);
+
+/// 轨道菲涅尔边缘高光
+final ValueNotifier<double> navGlassFresnel = ValueNotifier<double>(2.5);
+
+/// 轨道光强
+final ValueNotifier<double> navGlassLight = ValueNotifier<double>(0.8);
+
+/// 轨道辉光
+final ValueNotifier<double> navGlassGlow = ValueNotifier<double>(0.3);
+
+/// 轨道背景色不透明度（0~1，默认 0.06）
+final ValueNotifier<double> navGlassBgAlpha = ValueNotifier<double>(0.06);
+
+/// 选中胶囊折射率
+final ValueNotifier<double> navIndicatorRefractiveIndex = ValueNotifier<double>(1.3);
+
+/// 选中胶囊菲涅尔
+final ValueNotifier<double> navIndicatorFresnel = ValueNotifier<double>(2.0);
+
+/// 选中胶囊光强
+final ValueNotifier<double> navIndicatorLight = ValueNotifier<double>(1.0);
+
+/// 选中胶囊辉光
+final ValueNotifier<double> navIndicatorGlow = ValueNotifier<double>(0.6);
+
+/// 导航栏是否使用普通毛玻璃（关闭液态玻璃，提升性能）
+final ValueNotifier<bool> navSimpleGlass = ValueNotifier<bool>(false);
+
+/// 导航栏是否使用纯色扁平风格（无玻璃无模糊）
+final ValueNotifier<bool> navFlatStyle = ValueNotifier<bool>(false);
+
 // ---------- 主题色代理：随界面风格切换 ----------
 
 /// 是否为极简白色（浅色主题）
@@ -208,6 +249,21 @@ Future<void> loadUiSettings() async {
   playerBgOverlay.value = prefs.getBool('player_bg_overlay') ?? true;
   playerBgOverlayOpacity.value =
       prefs.getDouble('player_bg_overlay_opacity') ?? 0.35;
+  navGlassThickness.value = prefs.getDouble('nav_glass_thickness') ?? 25;
+  navGlassBlur.value = prefs.getDouble('nav_glass_blur') ?? 6;
+  navGlassRefractiveIndex.value =
+      prefs.getDouble('nav_glass_ri') ?? 1.3;
+  navGlassFresnel.value = prefs.getDouble('nav_glass_fresnel') ?? 2.5;
+  navGlassLight.value = prefs.getDouble('nav_glass_light') ?? 0.8;
+  navGlassGlow.value = prefs.getDouble('nav_glass_glow') ?? 0.3;
+  navGlassBgAlpha.value = prefs.getDouble('nav_glass_bg_alpha') ?? 0.06;
+  navIndicatorRefractiveIndex.value =
+      prefs.getDouble('nav_ind_ri') ?? 1.3;
+  navIndicatorFresnel.value = prefs.getDouble('nav_ind_fresnel') ?? 2.0;
+  navIndicatorLight.value = prefs.getDouble('nav_ind_light') ?? 1.0;
+  navIndicatorGlow.value = prefs.getDouble('nav_ind_glow') ?? 0.6;
+  navSimpleGlass.value = prefs.getBool('nav_simple_glass') ?? false;
+  navFlatStyle.value = prefs.getBool('nav_flat_style') ?? false;
 }
 
 /// 切换「封面飞入」并持久化
@@ -337,4 +393,37 @@ Future<void> setPlayerBgOverlayOpacity(double value) async {
   playerBgOverlayOpacity.value = value;
   final prefs = await SharedPreferences.getInstance();
   await prefs.setDouble('player_bg_overlay_opacity', value);
+}
+
+/// 重置导航栏液态玻璃参数到默认值
+Future<void> resetNavGlassSettings() async {
+  navGlassThickness.value = 25;
+  navGlassBlur.value = 6;
+  navGlassRefractiveIndex.value = 1.3;
+  navGlassFresnel.value = 2.5;
+  navGlassLight.value = 0.8;
+  navGlassGlow.value = 0.3;
+  navGlassBgAlpha.value = 0.06;
+  navIndicatorRefractiveIndex.value = 1.3;
+  navIndicatorFresnel.value = 2.0;
+  navIndicatorLight.value = 1.0;
+  navIndicatorGlow.value = 0.6;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('nav_glass_thickness');
+  await prefs.remove('nav_glass_blur');
+  await prefs.remove('nav_glass_ri');
+  await prefs.remove('nav_glass_fresnel');
+  await prefs.remove('nav_glass_light');
+  await prefs.remove('nav_glass_glow');
+  await prefs.remove('nav_glass_bg_alpha');
+  await prefs.remove('nav_ind_ri');
+  await prefs.remove('nav_ind_fresnel');
+  await prefs.remove('nav_ind_light');
+  await prefs.remove('nav_ind_glow');
+}
+
+/// 保存单个导航栏玻璃参数
+Future<void> saveNavGlassParam(String key, double value) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setDouble(key, value);
 }

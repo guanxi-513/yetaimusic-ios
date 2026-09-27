@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async' show unawaited;
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -175,15 +176,124 @@ class _GlassNavBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: GlassSegmentedControl(
-              segments: labels.map((l) => GlassSegment(label: l)).toList(),
-              selectedIndex: tabIndex,
-              onSegmentSelected: (i) => onTabChanged(i),
-              height: 36,
-              quality: GlassQuality.premium,
-              settings: LiquidGlassSettings(thickness: 40, blur: 8, refractiveIndex: 1.6),
-              indicatorSettings: LiquidGlassSettings(thickness: 30, blur: 4, refractiveIndex: 1.5),
-              interactionBehavior: GlassInteractionBehavior.full,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([navSimpleGlass, navFlatStyle]),
+              builder: (_, __) {
+                if (navFlatStyle.value) {
+                  return Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0EFE8),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: List.generate(labels.length, (i) {
+                        final selected = i == tabIndex;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => onTabChanged(i),
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: selected
+                                  ? BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                    )
+                                  : null,
+                              child: Text(
+                                labels[i],
+                                style: TextStyle(
+                                  color: selected ? const Color(0xFF1A1B1C) : const Color(0xFF6B7280),
+                                  fontSize: 13,
+                                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                }
+                if (navSimpleGlass.value) {
+                  // 普通毛玻璃，性能模式
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: List.generate(labels.length, (i) {
+                            final selected = i == tabIndex;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () => onTabChanged(i),
+                                child: Container(
+                                  alignment: Alignment.center,
+                                  decoration: selected
+                                      ? BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(16),
+                                        )
+                                      : null,
+                                  child: Text(
+                                    labels[i],
+                                    style: TextStyle(
+                                      color: selected ? Colors.white : Colors.white70,
+                                      fontSize: 13,
+                                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                // 液态玻璃模式
+                return AnimatedBuilder(
+                  animation: Listenable.merge([
+                    navGlassThickness, navGlassBlur, navGlassRefractiveIndex,
+                    navGlassFresnel, navGlassLight, navGlassGlow, navGlassBgAlpha,
+                    navIndicatorRefractiveIndex, navIndicatorFresnel,
+                    navIndicatorLight, navIndicatorGlow,
+                  ]),
+                  builder: (_, __) => GlassTabBar.inline(
+                    tabs: labels.map((l) => GlassTab(label: l)).toList(),
+                    selectedIndex: tabIndex,
+                    onTabSelected: (i) => onTabChanged(i),
+                    barHeight: 36,
+                    quality: GlassQuality.premium,
+                    settings: LiquidGlassSettings(
+                      thickness: navGlassThickness.value,
+                      blur: navGlassBlur.value,
+                      refractiveIndex: navGlassRefractiveIndex.value,
+                      glassColor: Colors.white.withOpacity(0.08),
+                      lightIntensity: navGlassLight.value,
+                      fresnelStrength: navGlassFresnel.value,
+                      glowIntensity: navGlassGlow.value,
+                      shadowElevation: 1.0,
+                    ),
+                    indicatorSettings: LiquidGlassSettings(
+                      thickness: 20,
+                      blur: 2,
+                      refractiveIndex: navIndicatorRefractiveIndex.value,
+                      lightIntensity: navIndicatorLight.value,
+                      fresnelStrength: navIndicatorFresnel.value,
+                      glowIntensity: navIndicatorGlow.value,
+                    ),
+                    interactionBehavior: GlassInteractionBehavior.full,
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(width: 8),
