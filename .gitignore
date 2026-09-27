@@ -1,4 +1,4 @@
-# Miscellaneous
+﻿# Miscellaneous
 *.class
 *.log
 *.pyc
@@ -72,4 +72,3 @@ android/.gradle/
 android/key.properties
 android/app/release/
 
-ios/
