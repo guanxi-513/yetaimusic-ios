@@ -71,3 +71,5 @@ android/build/
 android/.gradle/
 android/key.properties
 android/app/release/
+
+ios/
