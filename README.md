@@ -1,17 +1,92 @@
-# liquid_music
+# 液态音乐 (Yetai Music)
 
-A new Flutter project.
+一个**多平台音源音乐播放器**，由 Flutter 前端 App + Node 音源服务端组成。聚合**网易云、酷狗、QQ 音乐**多音源搜索与播放，受限/会员歌曲自动换源解锁，深度同步各平台（登录、歌单、每日推荐、收藏），支持后台播放、通知栏控制、小米灵动岛，音质可选。
 
-## Getting Started
+> ⚠️ 项目为个人学习用途。音源数据来自第三方平台接口，请遵守各平台服务条款，勿商用、勿绕过付费内容。
 
-This project is a starting point for a Flutter application.
+## 项目结构
 
-A few resources to get you started if this is your first Flutter project:
+```
+yetaimusicall/
+├── frontend/        # 手机 App（Flutter，Android）
+│   ├── lib/         # Dart 源码
+│   └── android/     # Android 原生层（通知/灵动岛等）
+└── backend/         # 音源服务端（Node.js，HTTP + 代理）
+    ├── server.js    # 主服务
+    ├── kugou-api.js # 酷狗音源
+    ├── qq-api.js    # QQ 音乐音源
+    ├── frontier.js  # 换源/解锁链路
+    └── player.html  # 网页播放器（iPhone/其他设备直接浏览器用）
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## 快速开始
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 后端（音源服务）
+
+```bash
+cd backend
+npm install
+npm start            # 默认端口 41831，可用 PORT 环境变量修改
+# 验证：curl http://localhost:41831/status
+```
+
+### 前端（Android App）
+
+```bash
+cd frontend
+flutter pub get
+flutter run           # 调试运行
+flutter build apk --release   # 出正式包
+```
+
+App 启动后默认连接音源服务 `http://82.157.146.105:41831`，也可在「设置」里运行时修改（持久化保存）。
+
+## 更新日志
+
+见 [frontend/CHANGELOG.md](frontend/CHANGELOG.md)。
+
+## 核心功能
+
+| 模块 | 说明 |
+|---|---|
+| 多音源搜索 | 网易云 / 酷狗 / QQ / B站，按平台切换搜索 |
+| 换源解锁 | 受限/会员歌曲按顺序换源：当前平台 → 网易云解锁 → QQ → B站兜底（歌名+歌手强匹配） |
+| 平台同步 | 网易云 / 酷狗 / QQ 各自登录（扫码），同步歌单、每日推荐、红心收藏，登录态互不干扰 |
+| 音质选择 | 标准 128k / 高品 320k / 无损 FLAC，播放页显示真实音质 |
+| 后台播放 | 后台不断播、通知栏控制（上一首/播放/下一首/收藏）、小米灵动岛 |
+| 播放体验 | 歌词、播放历史、本地收藏、最近播放缓存、黑底青绿光 Spotify 风 UI |
+
+## 更新日志
+
+### v1.2.0（2026-09-10）
+- **UI 重做**：黑底 + 青绿弥散光（Spotify 极简暗色风）替换原紫渐变光斑背景
+- **播放页 / 歌单详情页全透明**：去掉截图模糊机制，直接透出下层页面
+- **列表性能大优化**：歌曲卡片去掉 BackdropFilter 背景模糊（模糊是卡顿大头），滚动明显流畅
+- 设置页新增**「自定义界面」**：歌曲卡片毛玻璃开关（持久化，默认关闭）
+- 详见 [UPDATE-2026-09-10-v1.2.0.md](./UPDATE-2026-09-10-v1.2.0.md)
+
+### v1.1.1（2026-09-10）
+- 修复**网易云登录态串号**：登录成功 cookie 回传客户端保存，多设备各用各的账号，不再显示他人歌单
+- B站音源直连播放增强（directUrl + 播放头），降低服务器带宽
+- 汽水模块可选加载（仓库版无该文件时 /soda/* 返回 404）
+- 隐私加固：未登录设备的网易云登录态接口（歌单/日推/雷达/红心/状态）一律返回 401，不再泄露最后登录者数据
+
+### v1.1.0（2026-09-10）
+- 新增**酷狗音源**：搜索 / 每日推荐 / 猜你喜欢 / 歌单 / 扫码登录
+- 新增 **QQ 音乐音源**：搜索 / 每日推荐 / 歌单 / 红心收藏同步 / 登录
+- 强化换源链路：当前平台源 → 网易云解锁源 → QQ → B站兜底，歌名+歌手强匹配优先
+- 前端同步多音源支持（登录、歌单、收藏、歌词）
+- 汽水音乐登录**暂缓**（公开仓库不含 soda 模块，`/soda/*` 返回 404，不影响其他音源）
+- 完整接口清单见 [UPDATE-2026-09-10.md](./UPDATE-2026-09-10.md)
+
+### v1.0.0
+- 首发：网易云 + B站双源，后台播放、通知栏、小米灵动岛
+
+## 各端文档
+
+- [前端（App）说明](./frontend/README.md)
+- [后端（服务）说明](./backend/README.md)
+
+## 免责声明
+
+本项目仅用于个人学习与技术交流，请遵守相关平台服务条款与法律法规。音源接口不稳定时请自行承担使用风险。
