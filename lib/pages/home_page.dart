@@ -1,4 +1,4 @@
-﻿/// 首页：毛玻璃导航栏 + 四个子页（每日推荐 / 搜索 / 榜单 / 我的歌单）
+/// 首页：毛玻璃导航栏 + 四个子页（每日推荐 / 搜索 / 榜单 / 我的歌单）
 library;
 
 import 'dart:async' show unawaited;
@@ -16,6 +16,8 @@ import '../services/lock_screen_lyrics_service.dart';
 import '../state/auth_state.dart';
 import '../state/player_state.dart';
 import '../state/ui_settings.dart';
+import '../state/theme_state.dart';
+import '../widgets/theme_background.dart';
 import 'apple_music_login_page.dart';
 import 'charts_page.dart';
 import 'developer_settings_page.dart';
@@ -26,6 +28,7 @@ import 'playlists_page.dart';
 import 'recommend_view.dart';
 import 'search_page.dart';
 import 'sync_page.dart';
+import 'theme_settings_page.dart';
 import 'transition_settings_page.dart';
 import 'ui_customize_page.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
@@ -103,10 +106,10 @@ class _HomePageState extends State<HomePage> {
             child: IndexedStack(
               index: _tab,
               children: [
-                RecommendView(),
-                SearchPage(),
-                ChartsPage(),
-                PlaylistsPage(isActive: _tab == 3),
+                ThemeBackground(pageId: BgPages.recommend, child: RecommendView()),
+                ThemeBackground(pageId: BgPages.search, child: SearchPage()),
+                ThemeBackground(pageId: BgPages.charts, child: ChartsPage()),
+                ThemeBackground(pageId: BgPages.playlists, child: PlaylistsPage(isActive: _tab == 3)),
               ],
             ),
           ),
@@ -351,31 +354,41 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
     return AlertDialog(
-      backgroundColor: bgElevated,
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: fgPrimary.withOpacity(0.15)),
       ),
-      title: Text('设置', style: TextStyle(color: fgPrimary)),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 用户信息 / 登录区
-            _buildUserSection(auth),
-            SizedBox(height: 16),
-            Text('音源服务地址', style: TextStyle(color: fgSecondary, fontSize: 13)),
-            SizedBox(height: 8),
-            TextField(
-              controller: _controller,
-              style: TextStyle(color: fgPrimary, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'http://10.0.2.2:41831',
-                hintStyle: TextStyle(color: fgPrimary.withOpacity(0.35)),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: fgPrimary.withOpacity(0.25)),
+      content: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: ThemeBackground(
+          pageId: BgPages.settings,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('设置', style: TextStyle(color: fgPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+                SizedBox(height: 16),
+                // 用户信息 / 登录区
+                _buildUserSection(auth),
+                SizedBox(height: 16),
+                Text('音源服务地址', style: TextStyle(color: fgSecondary, fontSize: 13)),
+                SizedBox(height: 8),
+                TextField(
+                  controller: _controller,
+                  style: TextStyle(color: fgPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'http://10.0.2.2:41831',
+                    hintStyle: TextStyle(color: fgPrimary.withOpacity(0.35)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: fgPrimary.withOpacity(0.25)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -394,6 +407,29 @@ class _SettingsDialogState extends State<_SettingsDialog> {
             // ---- 自定义界面 ----
             Text('自定义界面', style: TextStyle(color: fgSecondary, fontSize: 13)),
             SizedBox(height: 8),
+            // 主题皮肤入口（预设一键换肤 + 各页面背景）
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [
+                  const Color(0xFF39C5BB).withOpacity(0.18),
+                  const Color(0xFF1DB954).withOpacity(0.12),
+                ]),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ListTile(
+                leading: const Text('🎨', style: TextStyle(fontSize: 24)),
+                title: Text('主题皮肤', style: TextStyle(color: fgPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: Text('初音未来等预设 · 每个页面可单独换背景',
+                    style: TextStyle(color: fgTertiary, fontSize: 11)),
+                trailing: Icon(Icons.chevron_right, color: fgPrimary.withOpacity(0.6)),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ThemeSettingsPage()),
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 12),
             // 界面风格预设
             ValueListenableBuilder<UiStyle>(
               valueListenable: uiStyle,
@@ -404,18 +440,6 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     desc: '封面模糊 + 实时毛玻璃 + 青绿光效',
                     selected: style == UiStyle.glass,
                     onTap: () => setUiStyle(UiStyle.glass),
-                  ),
-                  _StyleOption(
-                    title: '极简暗色',
-                    desc: '纯黑背景 + 扁平卡片，无模糊无光效',
-                    selected: style == UiStyle.plain,
-                    onTap: () => setUiStyle(UiStyle.plain),
-                  ),
-                  _StyleOption(
-                    title: '暗色透明',
-                    desc: '封面模糊 + 详情页透明透出下层',
-                    selected: style == UiStyle.transparent,
-                    onTap: () => setUiStyle(UiStyle.transparent),
                   ),
                   _StyleOption(
                     title: '极简白色',
@@ -606,29 +630,6 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     )
                   : const SizedBox.shrink(),
             ),
-            // 过渡动画三级设置入口
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '过渡动画',
-                style: TextStyle(color: fgPrimary, fontSize: 14),
-              ),
-              subtitle: Text(
-                '封面飞入 · 页面推入 · 列表递进',
-                style: TextStyle(color: fgTertiary, fontSize: 11),
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
-                color: fgPrimary.withOpacity(0.6),
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const TransitionSettingsPage(),
-                  ),
-                );
-              },
-            ),
             // 多设备同步入口（局域网 WebRTC P2P 跟播）
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -701,21 +702,32 @@ class _SettingsDialogState extends State<_SettingsDialog> {
             ),
           ],
         ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('关闭', style: TextStyle(color: fgSecondary)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      final url = _controller.text.trim();
+                      if (url.isNotEmpty) AppConfig.saveApiBaseUrl(url);
+                      Navigator.pop(context);
+                    },
+                    child: Text('保存', style: TextStyle(color: fgPrimary)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('关闭', style: TextStyle(color: fgSecondary)),
-        ),
-        TextButton(
-          onPressed: () {
-            final url = _controller.text.trim();
-            if (url.isNotEmpty) AppConfig.saveApiBaseUrl(url);
-            Navigator.pop(context);
-          },
-          child: Text('保存', style: TextStyle(color: fgPrimary)),
-        ),
-      ],
+      ),
     );
   }
 

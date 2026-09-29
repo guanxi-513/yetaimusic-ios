@@ -1,4 +1,4 @@
-﻿/// UI 高度自定义（三级页）：主题预设 + 独立开关，自由组合视觉风格
+/// UI 高度自定义（三级页）：主题预设 + 独立开关，自由组合视觉风格
 /// 与 [TransitionSettingsPage] 同级，从设置抽屉「自定义界面」分区 push 进入。
 /// 设计原则：不新增预设枚举，复用现有 UiStyle 四档；独立开关复用 songCardBlur/
 /// transitionHero/transitionPage，仅新增 globalBlur/secondaryTransparent/pageBlur/closeAnimation。
@@ -11,7 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../state/theme_state.dart';
 import '../state/ui_settings.dart';
+import '../widgets/theme_background.dart';
 import 'player_bg_crop_page.dart';
 import 'nav_glass_settings_page.dart';
 
@@ -23,8 +25,10 @@ class UiCustomizePage extends StatelessWidget {
     return ListenableBuilder(
       listenable: uiStyle,
       builder: (context, _) {
-        return Scaffold(
-          backgroundColor: bgBase,
+        return ThemeBackground(
+          pageId: BgPages.settingsDetail,
+          child: Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -240,273 +244,6 @@ class UiCustomizePage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                // ---- 播放页背景色（独立于主题预设，强制覆盖） ----
-                _SectionLabel('播放页背景色'),
-                const SizedBox(height: 6),
-                ListenableBuilder(
-                  listenable: Listenable.merge([
-                    playerBgStyle,
-                    customPlayerBgColor,
-                  ]),
-                  builder: (_, __) {
-                    final bg = playerBgStyle.value;
-                    return _buildCard(
-                      children: [
-                        _BgStyleOption(
-                          title: '跟随预设（封面）',
-                          desc: '玻璃档封面模糊，极简档纯色',
-                          selected: bg == PlayerBgStyle.cover,
-                          onTap: () => setPlayerBgStyle(PlayerBgStyle.cover),
-                        ),
-                        Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                        _BgStyleOption(
-                          title: '暖白',
-                          desc: '纯色暖白背景',
-                          swatch: const Color(0xFFF9FAF4),
-                          selected: bg == PlayerBgStyle.white,
-                          onTap: () => setPlayerBgStyle(PlayerBgStyle.white),
-                        ),
-                        Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                        _BgStyleOption(
-                          title: '纯黑',
-                          desc: '纯色纯黑背景',
-                          swatch: const Color(0xFF000000),
-                          selected: bg == PlayerBgStyle.black,
-                          onTap: () => setPlayerBgStyle(PlayerBgStyle.black),
-                        ),
-                        Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                        _BgStyleOption(
-                          title: '透明',
-                          desc: '播放页透出下层首页',
-                          selected: bg == PlayerBgStyle.transparent,
-                          onTap: () =>
-                              setPlayerBgStyle(PlayerBgStyle.transparent),
-                        ),
-                        Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                        _BgStyleOption(
-                          title: '自定义颜色',
-                          desc: '从下方选色器挑选',
-                          swatch: Color(customPlayerBgColor.value),
-                          selected: bg == PlayerBgStyle.custom,
-                          onTap: () => setPlayerBgStyle(PlayerBgStyle.custom),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                // 自定义颜色选色器（选「自定义颜色」时展开）
-                ValueListenableBuilder<PlayerBgStyle>(
-                  valueListenable: playerBgStyle,
-                  builder: (_, bg, __) => AnimatedCrossFade(
-                    firstChild: Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: _buildColorPicker(),
-                    ),
-                    secondChild: const SizedBox.shrink(),
-                    crossFadeState: bg == PlayerBgStyle.custom
-                        ? CrossFadeState.showFirst
-                        : CrossFadeState.showSecond,
-                    duration: const Duration(milliseconds: 220),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    '该选项独立于主题预设；透明播放页会透出首页内容，自定义颜色建议选深色以保证歌词可读。',
-                    style: TextStyle(
-                      color: fgTertiary,
-                      fontSize: 11,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // ---- 自定义播放背景（图片） ----
-                _SectionLabel('自定义播放背景'),
-                const SizedBox(height: 6),
-                _buildCard(
-                  children: [
-                    // 预览 + 操作按钮
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 预览缩略图（9:16）
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: ValueListenableBuilder<String>(
-                              valueListenable: customPlayerBgImage,
-                              builder: (_, path, __) => SizedBox(
-                                width: 72,
-                                height: 128,
-                                child: path.isEmpty
-                                    ? Container(
-                                        color: fgPrimary.withOpacity(0.08),
-                                        child: Icon(
-                                          Icons.image_outlined,
-                                          color: fgTertiary,
-                                          size: 26,
-                                        ),
-                                      )
-                                    : Image.file(
-                                        File(path),
-                                        key: ValueKey('preview-$path'),
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          color: fgPrimary.withOpacity(0.08),
-                                          child: Icon(
-                                            Icons.broken_image_outlined,
-                                            color: fgTertiary,
-                                            size: 26,
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ValueListenableBuilder<String>(
-                              valueListenable: customPlayerBgImage,
-                              builder: (_, path, __) => Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    path.isEmpty ? '未设置（跟随上方背景色）' : '已设置自定义图片',
-                                    style: TextStyle(
-                                      color: fgPrimary,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '设置后任何主题预设下优先生效',
-                                    style: TextStyle(
-                                      color: fgTertiary,
-                                      fontSize: 11,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      _SmallActionButton(
-                                        label: '选择图片',
-                                        onTap: () => _pickAndCropBg(context),
-                                      ),
-                                      if (path.isNotEmpty) ...[
-                                        _SmallActionButton(
-                                          label: '重新裁剪',
-                                          onTap: () => _recropBg(context, path),
-                                        ),
-                                        _SmallActionButton(
-                                          label: '清除',
-                                          danger: true,
-                                          onTap: () => _clearBg(path),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: playerBgOverlay,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '半透明遮罩',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '在自定义图片上叠一层黑色遮罩，保证文字可读',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setPlayerBgOverlay,
-                      ),
-                    ),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: playerBgOverlay,
-                      builder: (_, overlayOn, __) =>
-                          ValueListenableBuilder<double>(
-                            valueListenable: playerBgOverlayOpacity,
-                            builder: (_, opacity, __) => Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    '遮罩透明度',
-                                    style: TextStyle(
-                                      color: overlayOn
-                                          ? fgSecondary
-                                          : fgTertiary,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: SliderTheme(
-                                      data: SliderThemeData(
-                                        trackHeight: 3,
-                                        thumbShape: const RoundSliderThumbShape(
-                                          enabledThumbRadius: 7,
-                                        ),
-                                        overlayShape:
-                                            const RoundSliderOverlayShape(
-                                              overlayRadius: 14,
-                                            ),
-                                      ),
-                                      child: Slider(
-                                        value: opacity,
-                                        min: 0.0,
-                                        max: 0.8,
-                                        divisions: 16,
-                                        activeColor: const Color(0xFF1DB954),
-                                        inactiveColor: fgPrimary.withOpacity(
-                                          0.12,
-                                        ),
-                                        onChanged: overlayOn
-                                            ? setPlayerBgOverlayOpacity
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 36,
-                                    child: Text(
-                                      '${(opacity * 100).round()}%',
-                                      textAlign: TextAlign.right,
-                                      style: TextStyle(
-                                        color: fgTertiary,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
                 // ---- 动画设置 ----
                 _SectionLabel('动画设置'),
                 const SizedBox(height: 6),
@@ -582,6 +319,7 @@ class UiCustomizePage extends StatelessWidget {
               ],
             ),
           ),
+          ),
         );
       },
     );
@@ -590,9 +328,9 @@ class UiCustomizePage extends StatelessWidget {
   Widget _buildCard({required List<Widget> children}) {
     return Container(
       decoration: BoxDecoration(
-        color: bgCard,
+        color: Colors.white.withOpacity(0.07),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),

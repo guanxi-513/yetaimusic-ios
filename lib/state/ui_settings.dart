@@ -427,3 +427,112 @@ Future<void> saveNavGlassParam(String key, double value) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setDouble(key, value);
 }
+
+// ==================== 主题分享：UI 参数导出/导入 ====================
+
+/// 导出所有 UI 参数为可分享的 JSON Map
+Map<String, dynamic> exportUiSettings() {
+  return {
+    'uiStyle': uiStyle.value.name,
+    'songCardBlur': songCardBlur.value,
+    'keepPlayingWithOtherApps': keepPlayingWithOtherApps.value,
+    'lockScreenLyrics': lockScreenLyrics.value,
+    'miniPlayerBottomOffset': miniPlayerBottomOffset.value,
+    'transitionHero': transitionHero.value,
+    'transitionPage': transitionPage.value,
+    'transitionStagger': transitionStagger.value,
+    'globalBlur': globalBlur.value,
+    'liquidGlassNav': liquidGlassNav.value,
+    'secondaryTransparent': secondaryTransparent.value,
+    'pageBlur': pageBlur.value,
+    'closeAnimation': closeAnimation.value,
+    'playerBgStyle': playerBgStyle.value.name,
+    'customPlayerBgColor': customPlayerBgColor.value,
+    'customPlayerBgImage': customPlayerBgImage.value,
+    'playerBgOverlay': playerBgOverlay.value,
+    'playerBgOverlayOpacity': playerBgOverlayOpacity.value,
+    'navGlassThickness': navGlassThickness.value,
+    'navGlassBlur': navGlassBlur.value,
+    'navGlassRefractiveIndex': navGlassRefractiveIndex.value,
+    'navGlassFresnel': navGlassFresnel.value,
+    'navGlassLight': navGlassLight.value,
+    'navGlassGlow': navGlassGlow.value,
+    'navGlassBgAlpha': navGlassBgAlpha.value,
+    'navIndicatorRefractiveIndex': navIndicatorRefractiveIndex.value,
+    'navIndicatorFresnel': navIndicatorFresnel.value,
+    'navIndicatorLight': navIndicatorLight.value,
+    'navIndicatorGlow': navIndicatorGlow.value,
+    'navSimpleGlass': navSimpleGlass.value,
+    'navFlatStyle': navFlatStyle.value,
+  };
+}
+
+/// 从分享 JSON 导入 UI 参数（缺的字段保持当前值）
+Future<void> importUiSettings(Map<String, dynamic> ui) async {
+  T? pick<T>(String key, T Function(dynamic) cast) {
+    if (!ui.containsKey(key) || ui[key] == null) return null;
+    try { return cast(ui[key]); } catch (_) { return null; }
+  }
+
+  final styleName = pick<String>('uiStyle', (v) => v as String);
+  if (styleName != null) {
+    final style = UiStyle.values.asNameMap()[styleName];
+    if (style != null) uiStyle.value = style;
+  }
+  final bgStyleName = pick<String>('playerBgStyle', (v) => v as String);
+  if (bgStyleName != null) {
+    final s = PlayerBgStyle.values.asNameMap()[bgStyleName];
+    if (s != null) playerBgStyle.value = s;
+  }
+
+  void b(String key, ValueNotifier<bool> n) {
+    final v = pick<bool>(key, (x) => x as bool);
+    if (v != null) n.value = v;
+  }
+  void d(String key, ValueNotifier<double> n) {
+    final v = pick<double>(key, (x) => (x as num).toDouble());
+    if (v != null) n.value = v;
+  }
+  void i(String key, ValueNotifier<int> n) {
+    final v = pick<int>(key, (x) => (x as num).toInt());
+    if (v != null) n.value = v;
+  }
+  void s(String key, ValueNotifier<String> n) {
+    final v = pick<String>(key, (x) => x as String);
+    if (v != null) n.value = v;
+  }
+
+  b('songCardBlur', songCardBlur);
+  b('keepPlayingWithOtherApps', keepPlayingWithOtherApps);
+  b('lockScreenLyrics', lockScreenLyrics);
+  d('miniPlayerBottomOffset', miniPlayerBottomOffset);
+  b('transitionHero', transitionHero);
+  b('transitionPage', transitionPage);
+  b('transitionStagger', transitionStagger);
+  b('globalBlur', globalBlur);
+  b('liquidGlassNav', liquidGlassNav);
+  b('secondaryTransparent', secondaryTransparent);
+  b('pageBlur', pageBlur);
+  b('closeAnimation', closeAnimation);
+  i('customPlayerBgColor', customPlayerBgColor);
+  s('customPlayerBgImage', customPlayerBgImage);
+  b('playerBgOverlay', playerBgOverlay);
+  d('playerBgOverlayOpacity', playerBgOverlayOpacity);
+  d('navGlassThickness', navGlassThickness);
+  d('navGlassBlur', navGlassBlur);
+  d('navGlassRefractiveIndex', navGlassRefractiveIndex);
+  d('navGlassFresnel', navGlassFresnel);
+  d('navGlassLight', navGlassLight);
+  d('navGlassGlow', navGlassGlow);
+  d('navGlassBgAlpha', navGlassBgAlpha);
+  d('navIndicatorRefractiveIndex', navIndicatorRefractiveIndex);
+  d('navIndicatorFresnel', navIndicatorFresnel);
+  d('navIndicatorLight', navIndicatorLight);
+  d('navIndicatorGlow', navIndicatorGlow);
+  b('navSimpleGlass', navSimpleGlass);
+  b('navFlatStyle', navFlatStyle);
+
+  // 持久化
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('ui_style', uiStyle.value.name);
+}

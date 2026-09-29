@@ -1,12 +1,11 @@
-/// 榜单页：固定榜单列表（玻璃卡片网格），点击进歌单详情
+/// 榜单页：紧凑列表，左侧小方图 + 榜单名 + 描述，点击进歌单详情
 library;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../state/ui_settings.dart';
-
 import '../config.dart';
 import 'playlist_detail_page.dart';
-import '../widgets/glass_card.dart';
 
 class ChartsPage extends StatefulWidget {
   ChartsPage({super.key});
@@ -24,11 +23,11 @@ class _ChartsPageState extends State<ChartsPage>
   Widget build(BuildContext context) {
     super.build(context);
     return CustomScrollView(
-      physics: AlwaysScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 80, 20, 10),
+            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 80, 20, 4),
             child: Text(
               '排行榜',
               style: TextStyle(
@@ -42,7 +41,7 @@ class _ChartsPageState extends State<ChartsPage>
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Text(
               '云音乐官方榜单，每日更新',
               style: TextStyle(
@@ -53,18 +52,12 @@ class _ChartsPageState extends State<ChartsPage>
           ),
         ),
         SliverPadding(
-          padding: EdgeInsets.fromLTRB(16, 10, 16, 16),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.92,
-            ),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, i) {
                 final chart = AppConfig.kCharts[i];
-                return _ChartCard(chart: chart);
+                return _ChartRow(chart: chart);
               },
               childCount: AppConfig.kCharts.length,
             ),
@@ -75,116 +68,112 @@ class _ChartsPageState extends State<ChartsPage>
   }
 }
 
-class _ChartCard extends StatelessWidget {
+class _ChartRow extends StatelessWidget {
   final BoardChart chart;
-  _ChartCard({required this.chart});
+  const _ChartRow({required this.chart});
 
   @override
   Widget build(BuildContext context) {
-    // 用榜单名首字 + 渐变色块作占位封面（详情页会展示真实封面）
-    return GlassCard(
-      borderRadius: 20,
-      padding: EdgeInsets.zero,
-      onTap: () {
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            opaque: false,
-            transitionDuration: Duration(milliseconds: 300),
-            pageBuilder: (_, anim, __) => SlideTransition(
-              position: Tween<Offset>(
-                begin: Offset(0, 1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
-              child: PlaylistDetailPage(
-                id: chart.id,
-                title: chart.name,
+    final colors = _chartColors(chart.name);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                opaque: false,
+                transitionDuration: const Duration(milliseconds: 300),
+                pageBuilder: (_, anim, __) => SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 1),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                  child: PlaylistDetailPage(
+                    id: chart.id,
+                    title: chart.name,
+                  ),
+                ),
               ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
-          ),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 占位封面区
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: _chartColors(chart.name),
-                ),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    chart.name.characters.first,
-                    style: TextStyle(
-                      color: fgPrimary,
-                      fontSize: 44,
-                      fontWeight: FontWeight.w800,
+            child: Row(
+              children: [
+                // 小方图：渐变色 + 首字（缩小版，不再是大字）
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: colors,
                     ),
                   ),
-                  Positioned(
-                    top: 10,
-                    right: 12,
+                  child: Center(
                     child: Text(
-                      chart.name,
-                      style: TextStyle(
-                        color: fgPrimary.withOpacity(0.85),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                      chart.name.characters.first,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        chart.name,
+                        style: TextStyle(
+                          color: fgPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${chart.name} · 每日更新',
+                        style: TextStyle(
+                          color: fgPrimary.withOpacity(0.45),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: fgPrimary.withOpacity(0.4), size: 20),
+              ],
             ),
           ),
-          // 底部信息
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            decoration: BoxDecoration(
-              color: fgPrimary.withOpacity(0.06),
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(20),
-              ),
-            ),
-            child: Text(
-              chart.desc,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: fgPrimary.withOpacity(0.7),
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
-
-  /// 按榜单名分配渐变色
-  List<Color> _chartColors(String name) {
-    const palettes = [
-      [Color(0xFF6C4FE0), Color(0xFF8C3F6B)],
-      [Color(0xFF3A6FE0), Color(0xFF1A4C8C)],
-      [Color(0xFFE05A8A), Color(0xFF6C2E5A)],
-      [Color(0xFF2E8C6B), Color(0xFF1A5A4C)],
-      [Color(0xFFB07A2E), Color(0xFF6C4A1A)],
-      [Color(0xFF8C4FE0), Color(0xFF3A2E8C)],
-      [Color(0xFFE0634A), Color(0xFF6C2E22)],
-      [Color(0xFF4FA0C8), Color(0xFF2E5A6C)],
-    ];
-    final idx = name.hashCode.abs() % palettes.length;
-    return palettes[idx];
-  }
 }
 
-
+/// 每个榜单一个渐变色（从原代码提取）
+List<Color> _chartColors(String name) {
+  if (name.contains('热歌')) return [const Color(0xFF4A90D9), const Color(0xFF6BB6E8)];
+  if (name.contains('飙升')) return [const Color(0xFF3B5BDB), const Color(0xFF4C6EF5)];
+  if (name.contains('新歌')) return [const Color(0xFFD48806), const Color(0xFFF59F00)];
+  if (name.contains('原创')) return [const Color(0xFFC92A2A), const Color(0xFFE03131)];
+  if (name.contains('说唱')) return [const Color(0xFF7048E8), const Color(0xFF845EF7)];
+  if (name.contains('电音')) return [const Color(0xFF1971C2), const Color(0xFF1C7ED6)];
+  if (name.contains('抖音')) return [const Color(0xFFE64980), const Color(0xFFF06595)];
+  if (name.contains('民谣')) return [const Color(0xFF2F9E44), const Color(0xFF40C057)];
+  return [const Color(0xFF495057), const Color(0xFF868E96)];
+}

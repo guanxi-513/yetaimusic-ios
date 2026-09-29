@@ -3,6 +3,7 @@
 /// 极简暗色档：整条扁平实色
 library;
 
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,6 +14,7 @@ import '../models/song.dart';
 import '../pages/player_page.dart';
 import '../services/sync_service.dart';
 import '../state/player_state.dart';
+import '../state/theme_state.dart';
 import '../state/ui_settings.dart';
 import 'tap_scale.dart';
 
@@ -136,6 +138,7 @@ class _Bar extends StatelessWidget {
           uiStyle,
           miniPlayerBottomOffset,
           globalBlur,
+          themeState,
         ]),
         builder: (context, _) {
           final plain = uiStyle.value == UiStyle.plain;
@@ -143,6 +146,10 @@ class _Bar extends StatelessWidget {
           // 全局背景模糊开关：plain/light 档本身无模糊；glass/transparent 档下
           // 关闭后播放栏退化为实色容器（与 plain 同色 0xFF1A1C20）
           final useBlur = globalBlur.value;
+          // 播放胶囊自定义背景
+          final barBg = themeState.rawBg(BgPages.playerBar);
+          final barBgPath = barBg.type == BgType.image ? barBg.imagePath : null;
+          final barOverlay = barBg.overlayOpacity;
           return Container(
             // 底部间距跟随设置：默认 24，可在设置「自定义界面」自由调整
             margin: EdgeInsets.fromLTRB(
@@ -202,14 +209,29 @@ class _Bar extends StatelessWidget {
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    fgPrimary.withOpacity(0.20),
-                                    fgPrimary.withOpacity(0.08),
-                                  ],
-                                ),
+                                image: barBgPath != null
+                                    ? DecorationImage(
+                                        image: barBgPath.startsWith('assets/')
+                                            ? AssetImage(barBgPath) as ImageProvider
+                                            : FileImage(File(barBgPath)),
+                                        fit: BoxFit.cover,
+                                        alignment: Alignment.center,
+                                        colorFilter: ColorFilter.mode(
+                                          Colors.black.withOpacity(barOverlay),
+                                          BlendMode.srcOver,
+                                        ),
+                                      )
+                                    : null,
+                                gradient: barBgPath == null
+                                    ? LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          fgPrimary.withOpacity(0.20),
+                                          fgPrimary.withOpacity(0.08),
+                                        ],
+                                      )
+                                    : null,
                                 border: Border.all(
                                   color: fgPrimary.withOpacity(0.28),
                                   width: 1,

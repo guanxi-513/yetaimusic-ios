@@ -104,6 +104,8 @@ flutter:
   assets:
     # 应用图标 3 张预设的设置页预览图
     - assets/icons/
+    # 初音未来主题预设内置图（每个页面一张）
+    - assets/theme/miku/
 
   # 片段着色器（导航栏液态玻璃光学效果）
   shaders:

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:audio_service/audio_service.dart';
@@ -22,8 +22,9 @@ import 'services/sync_service.dart';
 import 'state/auth_state.dart';
 import 'state/player_state.dart';
 import 'state/ui_settings.dart';
+import 'state/theme_state.dart';
 import 'widgets/mini_player_bar.dart';
-import 'widgets/spotify_background.dart';
+import 'widgets/theme_background.dart';
 
 /// 全局状态（main 中创建，Provider.value 注入）
 late final PlayerState playerState;
@@ -199,22 +200,26 @@ class _HomeShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SpotifyBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        // 底部迷你播放条改为 Stack 悬浮层：胶囊两侧透出底下列表内容
-        body: Stack(
-          children: [
-            // 列表铺满全屏，悬浮胶囊盖在其上，四周均透出列表内容
-            const Positioned.fill(child: HomePage()),
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: MiniPlayerBar(),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      // 全局背景作为 body 最底层 Positioned，不包 Scaffold，避免约束影响底部胶囊
+      body: Stack(
+        children: [
+          const Positioned.fill(
+            child: ThemeBackground(
+              pageId: BgPages.global,
+              child: SizedBox.expand(),
             ),
-          ],
-        ),
+          ),
+          // 列表铺满全屏，悬浮胶囊盖在其上，四周均透出列表内容
+          const Positioned.fill(child: HomePage()),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: MiniPlayerBar(),
+          ),
+        ],
       ),
     );
   }
