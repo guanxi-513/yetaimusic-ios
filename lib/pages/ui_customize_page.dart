@@ -28,298 +28,522 @@ class UiCustomizePage extends StatelessWidget {
         return ThemeBackground(
           pageId: BgPages.settingsDetail,
           child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
             backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.chevron_left, color: fgPrimary, size: 30),
-              onPressed: () => Navigator.pop(context),
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.chevron_left, color: fgPrimary, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Text(
+                'UI 高度自定义',
+                style: TextStyle(
+                  color: fgPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-            title: Text(
-              'UI 高度自定义',
-              style: TextStyle(
-                color: fgPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+            body: SafeArea(
+              top: false,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      '先选主题预设作为基底，再用下方独立开关自由组合。预设不会覆盖你已手动调整的开关，仅作为快速起点。',
+                      style: TextStyle(
+                        color: fgTertiary,
+                        fontSize: 12,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // ---- 主题预设 ----
+                  _SectionLabel('主题预设'),
+                  const SizedBox(height: 6),
+                  ValueListenableBuilder<UiStyle>(
+                    valueListenable: uiStyle,
+                    builder: (_, style, __) => _buildCard(
+                      children: [
+                        _PresetOption(
+                          title: '液态玻璃',
+                          desc: '封面模糊 + 实时毛玻璃 + 青绿光效',
+                          selected: style == UiStyle.glass,
+                          onTap: () => setUiStyle(UiStyle.glass),
+                        ),
+                        Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                        _PresetOption(
+                          title: '极简暗色',
+                          desc: '纯黑背景 + 扁平卡片，无模糊无光效',
+                          selected: style == UiStyle.plain,
+                          onTap: () => setUiStyle(UiStyle.plain),
+                        ),
+                        Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                        _PresetOption(
+                          title: '暗色透明',
+                          desc: '封面模糊 + 详情页透明透出下层',
+                          selected: style == UiStyle.transparent,
+                          onTap: () => setUiStyle(UiStyle.transparent),
+                        ),
+                        Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                        _PresetOption(
+                          title: '极简白色',
+                          desc: '暖白背景 + 黑字，无玻璃无模糊',
+                          selected: style == UiStyle.white,
+                          onTap: () => setUiStyle(UiStyle.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // ---- 背景设置 ----
+                  _SectionLabel('背景设置'),
+                  const SizedBox(height: 6),
+                  _buildCard(
+                    children: [
+                      ValueListenableBuilder<bool>(
+                        valueListenable: globalBlur,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '全局背景模糊',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '底部播放栏毛玻璃层；关闭后播放栏为实色',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setGlobalBlur,
+                        ),
+                      ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          '如果不知道用哪个好看，随便选一个就可以了(*^_^*)',
+                          style: TextStyle(color: fgTertiary, fontSize: 12),
+                        ),
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: navFlatStyle,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '纯色扁平风格',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '导航栏纯底色，无玻璃无模糊，最简洁',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: (val) async {
+                            navFlatStyle.value = val;
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('nav_flat_style', val);
+                          },
+                        ),
+                      ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: navSimpleGlass,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '普通毛玻璃模式',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '关闭液态玻璃折射，提升低端机流畅度',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: (val) async {
+                            navSimpleGlass.value = val;
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('nav_simple_glass', val);
+                          },
+                        ),
+                      ),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                        ),
+                        title: Text(
+                          '导航栏玻璃参数微调',
+                          style: TextStyle(color: fgPrimary, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          '厚度/模糊/折射/边缘高光/辉光，实时预览',
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
+                        ),
+                        trailing: Icon(Icons.chevron_right, color: fgSecondary),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NavGlassSettingsPage(),
+                          ),
+                        ),
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: secondaryTransparent,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '二级页面背景透明',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '打开后歌单详情页透出下层（任何主题预设生效）；关闭后按预设铺实色背景',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setSecondaryTransparent,
+                        ),
+                      ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: songCardBlur,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '歌单列表卡片背景模糊',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '开启后歌曲卡片带背景模糊；关闭可提升列表滚动性能',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setSongCardBlur,
+                        ),
+                      ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: pageBlur,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '播放页背景模糊',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '播放页封面高斯模糊层；关闭后为清晰封面',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setPageBlur,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // ---- 播放页背景 ----
+                  _SectionLabel('播放页背景'),
+                  const SizedBox(height: 6),
+                  _buildPlayerBgSection(context),
+                  const SizedBox(height: 20),
+                  // ---- 动画设置 ----
+                  _SectionLabel('动画设置'),
+                  const SizedBox(height: 6),
+                  _buildCard(
+                    children: [
+                      ValueListenableBuilder<bool>(
+                        valueListenable: transitionHero,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '歌单打开动画',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '点开歌单时，封面从列表飞入详情页头部',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setTransitionHero,
+                        ),
+                      ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: transitionPage,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '模糊过渡动画',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '打开详情页整页上滑淡入，背景模糊渐显',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setTransitionPage,
+                        ),
+                      ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: closeAnimation,
+                        builder: (_, v, __) => SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          title: Text(
+                            '关闭动画丝滑过渡',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '返回时的过渡动画；关闭后立即切回（预留接线位）',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: v,
+                          activeTrackColor: const Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setCloseAnimation,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-          body: SafeArea(
-            top: false,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
+        );
+      },
+    );
+  }
+
+  /// 播放页背景分区：自定义背景图（最高优先级）+ 背景风格单选 + 自定义颜色。
+  ///
+  /// 此分区曾经丢失过，只剩消费端（player_page 读 playerBgStyle）没有设置端，
+  /// 一旦该值被分享码/预设写成「暖白」，用户在界面上没有任何入口改回
+  /// 「跟随预设（封面模糊）」。这里把接线补回来。
+  Widget _buildPlayerBgSection(BuildContext context) {
+    return Column(
+      children: [
+        // 自定义背景图：优先级最高，设置后覆盖下面的风格选项
+        _buildCard(children: [_buildCustomImageTile(context)]),
+        const SizedBox(height: 10),
+        ValueListenableBuilder<PlayerBgStyle>(
+          valueListenable: playerBgStyle,
+          builder: (_, style, __) => Column(
+            children: [
+              _buildCard(
+                children: [
+                  _BgStyleOption(
+                    title: '跟随预设（封面模糊）',
+                    desc: '按当前主题预设显示封面；模糊与否由「播放页背景模糊」控制',
+                    selected: style == PlayerBgStyle.cover,
+                    onTap: () => setPlayerBgStyle(PlayerBgStyle.cover),
                   ),
-                  child: Text(
-                    '先选主题预设作为基底，再用下方独立开关自由组合。预设不会覆盖你已手动调整的开关，仅作为快速起点。',
-                    style: TextStyle(
-                      color: fgTertiary,
-                      fontSize: 12,
-                      height: 1.6,
+                  Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                  _BgStyleOption(
+                    title: '暖白实色',
+                    desc: '固定暖白背景（0xFFF9FAF4），不看封面',
+                    selected: style == PlayerBgStyle.white,
+                    onTap: () => setPlayerBgStyle(PlayerBgStyle.white),
+                    swatch: const Color(0xFFF9FAF4),
+                  ),
+                  Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                  _BgStyleOption(
+                    title: '纯黑实色',
+                    desc: '固定纯黑背景，省电、对比度高',
+                    selected: style == PlayerBgStyle.black,
+                    onTap: () => setPlayerBgStyle(PlayerBgStyle.black),
+                    swatch: Colors.black,
+                  ),
+                  Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                  _BgStyleOption(
+                    title: '全透明',
+                    desc: '播放页透出下层首页（路由已是 opaque:false）',
+                    selected: style == PlayerBgStyle.transparent,
+                    onTap: () => setPlayerBgStyle(PlayerBgStyle.transparent),
+                  ),
+                  Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                  ValueListenableBuilder<int>(
+                    valueListenable: customPlayerBgColor,
+                    builder: (_, c, __) => _BgStyleOption(
+                      title: '自定义颜色',
+                      desc: '用下方色板 / RGB 滑杆自选颜色',
+                      selected: style == PlayerBgStyle.custom,
+                      onTap: () => setPlayerBgStyle(PlayerBgStyle.custom),
+                      swatch: Color(c),
                     ),
                   ),
+                ],
+              ),
+              if (style == PlayerBgStyle.custom) ...[
+                const SizedBox(height: 10),
+                _buildColorPicker(),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 「自定义背景图」卡片：选图 / 重新裁剪 / 清除 + 遮罩设置
+  Widget _buildCustomImageTile(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: customPlayerBgImage,
+      builder: (_, path, __) {
+        final has = path.isNotEmpty;
+        return Column(
+          children: [
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: Text(
+                '自定义背景图',
+                style: TextStyle(color: fgPrimary, fontSize: 14),
+              ),
+              subtitle: Text(
+                has ? '已设置，优先级最高，覆盖下方全部风格选项' : '未设置；设置后覆盖下方全部风格选项',
+                style: TextStyle(color: fgTertiary, fontSize: 11),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Row(
+                children: [
+                  _SmallActionButton(
+                    label: has ? '更换图片' : '选择图片',
+                    onTap: () => _pickAndCropBg(context),
+                  ),
+                  if (has) ...[
+                    const SizedBox(width: 10),
+                    _SmallActionButton(
+                      label: '重新裁剪',
+                      onTap: () => _recropBg(context, path),
+                    ),
+                    const SizedBox(width: 10),
+                    _SmallActionButton(
+                      label: '清除',
+                      danger: true,
+                      onTap: () => _clearBg(path),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (has) ...[
+              Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+              ValueListenableBuilder<bool>(
+                valueListenable: playerBgOverlay,
+                builder: (_, v, __) => SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  title: Text(
+                    '背景图加暗色遮罩',
+                    style: TextStyle(color: fgPrimary, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    '保证封面上的歌词与控件可读',
+                    style: TextStyle(color: fgTertiary, fontSize: 11),
+                  ),
+                  value: v,
+                  activeTrackColor: const Color(0xFF1DB954),
+                  activeThumbColor: fgPrimary,
+                  inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                  onChanged: setPlayerBgOverlay,
                 ),
-                const SizedBox(height: 4),
-                // ---- 主题预设 ----
-                _SectionLabel('主题预设'),
-                const SizedBox(height: 6),
-                ValueListenableBuilder<UiStyle>(
-                  valueListenable: uiStyle,
-                  builder: (_, style, __) => _buildCard(
+              ),
+              ValueListenableBuilder<double>(
+                valueListenable: playerBgOverlayOpacity,
+                builder: (_, v, __) => Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
                     children: [
-                      _PresetOption(
-                        title: '液态玻璃',
-                        desc: '封面模糊 + 实时毛玻璃 + 青绿光效',
-                        selected: style == UiStyle.glass,
-                        onTap: () => setUiStyle(UiStyle.glass),
+                      Text(
+                        '遮罩浓度',
+                        style: TextStyle(color: fgSecondary, fontSize: 12),
                       ),
-                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                      _PresetOption(
-                        title: '极简暗色',
-                        desc: '纯黑背景 + 扁平卡片，无模糊无光效',
-                        selected: style == UiStyle.plain,
-                        onTap: () => setUiStyle(UiStyle.plain),
+                      Expanded(
+                        child: SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 3,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 7,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 14,
+                            ),
+                          ),
+                          child: Slider(
+                            value: v,
+                            max: 0.8,
+                            divisions: 16,
+                            activeColor: const Color(0xFF1DB954),
+                            inactiveColor: fgPrimary.withOpacity(0.12),
+                            onChanged: setPlayerBgOverlayOpacity,
+                          ),
+                        ),
                       ),
-                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                      _PresetOption(
-                        title: '暗色透明',
-                        desc: '封面模糊 + 详情页透明透出下层',
-                        selected: style == UiStyle.transparent,
-                        onTap: () => setUiStyle(UiStyle.transparent),
-                      ),
-                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                      _PresetOption(
-                        title: '极简白色',
-                        desc: '暖白背景 + 黑字，无玻璃无模糊',
-                        selected: style == UiStyle.white,
-                        onTap: () => setUiStyle(UiStyle.white),
+                      SizedBox(
+                        width: 38,
+                        child: Text(
+                          '${(v * 100).round()}%',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                // ---- 背景设置 ----
-                _SectionLabel('背景设置'),
-                const SizedBox(height: 6),
-                _buildCard(
-                  children: [
-                    ValueListenableBuilder<bool>(
-                      valueListenable: globalBlur,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '全局背景模糊',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '底部播放栏毛玻璃层；关闭后播放栏为实色',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setGlobalBlur,
-                      ),
-                    ),
-                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Text('如果不知道用哪个好看，随便选一个就可以了(*^_^*)', style: TextStyle(color: fgTertiary, fontSize: 12)),
-                    ),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: navFlatStyle,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        title: Text('纯色扁平风格', style: TextStyle(color: fgPrimary, fontSize: 14)),
-                        subtitle: Text('导航栏纯底色，无玻璃无模糊，最简洁', style: TextStyle(color: fgTertiary, fontSize: 11)),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: (val) async {
-                          navFlatStyle.value = val;
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('nav_flat_style', val);
-                        },
-                      ),
-                    ),
-                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: navSimpleGlass,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        title: Text('普通毛玻璃模式', style: TextStyle(color: fgPrimary, fontSize: 14)),
-                        subtitle: Text('关闭液态玻璃折射，提升低端机流畅度', style: TextStyle(color: fgTertiary, fontSize: 11)),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: (val) async {
-                          navSimpleGlass.value = val;
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('nav_simple_glass', val);
-                        },
-                      ),
-                    ),
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      title: Text('导航栏玻璃参数微调', style: TextStyle(color: fgPrimary, fontSize: 14)),
-                      subtitle: Text('厚度/模糊/折射/边缘高光/辉光，实时预览', style: TextStyle(color: fgTertiary, fontSize: 11)),
-                      trailing: Icon(Icons.chevron_right, color: fgSecondary),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NavGlassSettingsPage())),
-                    ),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: secondaryTransparent,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '二级页面背景透明',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '打开后歌单详情页透出下层（任何主题预设生效）；关闭后按预设铺实色背景',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setSecondaryTransparent,
-                      ),
-                    ),
-                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: songCardBlur,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '歌单列表卡片背景模糊',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '开启后歌曲卡片带背景模糊；关闭可提升列表滚动性能',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setSongCardBlur,
-                      ),
-                    ),
-                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: pageBlur,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '播放页背景模糊',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '播放页封面高斯模糊层；关闭后为清晰封面',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setPageBlur,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // ---- 动画设置 ----
-                _SectionLabel('动画设置'),
-                const SizedBox(height: 6),
-                _buildCard(
-                  children: [
-                    ValueListenableBuilder<bool>(
-                      valueListenable: transitionHero,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '歌单打开动画',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '点开歌单时，封面从列表飞入详情页头部',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setTransitionHero,
-                      ),
-                    ),
-                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: transitionPage,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '模糊过渡动画',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '打开详情页整页上滑淡入，背景模糊渐显',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setTransitionPage,
-                      ),
-                    ),
-                    Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: closeAnimation,
-                      builder: (_, v, __) => SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        title: Text(
-                          '关闭动画丝滑过渡',
-                          style: TextStyle(color: fgPrimary, fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '返回时的过渡动画；关闭后立即切回（预留接线位）',
-                          style: TextStyle(color: fgTertiary, fontSize: 11),
-                        ),
-                        value: v,
-                        activeTrackColor: const Color(0xFF1DB954),
-                        activeThumbColor: fgPrimary,
-                        inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                        onChanged: setCloseAnimation,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          ),
+              ),
+            ],
+          ],
         );
       },
     );

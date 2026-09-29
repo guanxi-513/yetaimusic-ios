@@ -205,17 +205,32 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 背景：独立的「播放页背景色」选项优先，强制覆盖主题预设；
-                  // 选「跟随预设」时才走原有封面模糊/纯色逻辑
+                  // 背景优先级（从高到低）：
+                  //   1. 自定义背景图 customPlayerBgImage（未清除时永远生效）
+                  //   2. 主题皮肤里「播放页」槽位（非 inherit 时）
+                  //   3. 播放页背景风格 playerBgStyle（cover 才回到封面模糊）
                   Positioned.fill(
                     child: ListenableBuilder(
                       listenable: Listenable.merge([
                         uiStyle,
                         pageBlur,
                         themeState,
+                        // 下面这几个此前漏了，导致改了选项也不会重绘
+                        playerBgStyle,
+                        customPlayerBgColor,
+                        customPlayerBgImage,
+                        playerBgOverlay,
+                        playerBgOverlayOpacity,
                       ]),
                       builder: (context, _) {
-                        // 主题皮肤里给「播放页」设的背景优先
+                        // 1. 自定义背景图优先级最高
+                        final customImg = customPlayerBgImage.value;
+                        if (customImg.isNotEmpty &&
+                            (customImg.startsWith('assets/') ||
+                                File(customImg).existsSync())) {
+                          return _buildCustomImageBg(customImg);
+                        }
+                        // 2. 主题皮肤里给「播放页」设的背景
                         final raw = themeState.rawBg(BgPages.player);
                         if (raw.type != BgType.inherit) {
                           return ThemeBackground(
@@ -223,7 +238,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                             child: const SizedBox.expand(),
                           );
                         }
-                        // 跟随全局：走原有封面模糊/纯色逻辑
+                        // 3. 播放页背景风格
                         switch (playerBgStyle.value) {
                           case PlayerBgStyle.transparent:
                             // 全透明：直接透出下层首页（路由 opaque:false）
@@ -529,6 +544,33 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
           ),
         );
       },
+    );
+  }
+
+  /// 播放页「自定义背景图」：优先级最高，覆盖主题槽位与 playerBgStyle。
+  /// 文件缺失时走兜底渐变，不会留白屏。
+  Widget _buildCustomImageBg(String path) {
+    final image = path.startsWith('assets/')
+        ? Image.asset(
+            path,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _FallbackBg(),
+          )
+        : Image.file(
+            File(path),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _FallbackBg(),
+          );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        image,
+        if (playerBgOverlay.value)
+          ColoredBox(
+            color: Colors.black.withOpacity(playerBgOverlayOpacity.value),
+            child: const SizedBox.expand(),
+          ),
+      ],
     );
   }
 
