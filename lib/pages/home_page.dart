@@ -18,6 +18,7 @@ import '../state/player_state.dart';
 import '../state/ui_settings.dart';
 import '../state/theme_state.dart';
 import '../widgets/theme_background.dart';
+import 'page_bg_edit_page.dart';
 import 'apple_music_login_page.dart';
 import 'charts_page.dart';
 import 'developer_settings_page.dart';
@@ -106,10 +107,16 @@ class _HomePageState extends State<HomePage> {
             child: IndexedStack(
               index: _tab,
               children: [
-                ThemeBackground(pageId: BgPages.recommend, child: RecommendView()),
+                ThemeBackground(
+                  pageId: BgPages.recommend,
+                  child: RecommendView(),
+                ),
                 ThemeBackground(pageId: BgPages.search, child: SearchPage()),
                 ThemeBackground(pageId: BgPages.charts, child: ChartsPage()),
-                ThemeBackground(pageId: BgPages.playlists, child: PlaylistsPage(isActive: _tab == 3)),
+                ThemeBackground(
+                  pageId: BgPages.playlists,
+                  child: PlaylistsPage(isActive: _tab == 3),
+                ),
               ],
             ),
           ),
@@ -206,9 +213,13 @@ class _GlassNavBar extends StatelessWidget {
                               child: Text(
                                 labels[i],
                                 style: TextStyle(
-                                  color: selected ? const Color(0xFF1A1B1C) : const Color(0xFF6B7280),
+                                  color: selected
+                                      ? const Color(0xFF1A1B1C)
+                                      : const Color(0xFF6B7280),
                                   fontSize: 13,
-                                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
                                 ),
                               ),
                             ),
@@ -241,15 +252,21 @@ class _GlassNavBar extends StatelessWidget {
                                   decoration: selected
                                       ? BoxDecoration(
                                           color: Colors.white.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         )
                                       : null,
                                   child: Text(
                                     labels[i],
                                     style: TextStyle(
-                                      color: selected ? Colors.white : Colors.white70,
+                                      color: selected
+                                          ? Colors.white
+                                          : Colors.white70,
                                       fontSize: 13,
-                                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                                      fontWeight: selected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
                                     ),
                                   ),
                                 ),
@@ -264,37 +281,53 @@ class _GlassNavBar extends StatelessWidget {
                 // 液态玻璃模式
                 return AnimatedBuilder(
                   animation: Listenable.merge([
-                    navGlassThickness, navGlassBlur, navGlassRefractiveIndex,
-                    navGlassFresnel, navGlassLight, navGlassGlow, navGlassBgAlpha,
-                    navIndicatorRefractiveIndex, navIndicatorFresnel,
-                    navIndicatorLight, navIndicatorGlow,
+                    navGlassThickness,
+                    navGlassBlur,
+                    navGlassRefractiveIndex,
+                    navGlassFresnel,
+                    navGlassLight,
+                    navGlassGlow,
+                    navGlassBgAlpha,
+                    navIndicatorRefractiveIndex,
+                    navIndicatorFresnel,
+                    navIndicatorLight,
+                    navIndicatorGlow,
                   ]),
-                  builder: (_, __) => GlassTabBar.inline(
-                    tabs: labels.map((l) => GlassTab(label: l)).toList(),
-                    selectedIndex: tabIndex,
-                    onTabSelected: (i) => onTabChanged(i),
-                    barHeight: 36,
-                    quality: GlassQuality.premium,
-                    settings: LiquidGlassSettings(
-                      thickness: navGlassThickness.value,
-                      blur: navGlassBlur.value,
-                      refractiveIndex: navGlassRefractiveIndex.value,
-                      glassColor: Colors.white.withOpacity(0.08),
-                      lightIntensity: navGlassLight.value,
-                      fresnelStrength: navGlassFresnel.value,
-                      glowIntensity: navGlassGlow.value,
-                      shadowElevation: 1.0,
-                    ),
-                    indicatorSettings: LiquidGlassSettings(
-                      thickness: 20,
-                      blur: 2,
-                      refractiveIndex: navIndicatorRefractiveIndex.value,
-                      lightIntensity: navIndicatorLight.value,
-                      fresnelStrength: navIndicatorFresnel.value,
-                      glowIntensity: navIndicatorGlow.value,
-                    ),
-                    interactionBehavior: GlassInteractionBehavior.full,
-                  ),
+                  builder: (_, __) {
+                    // 液态玻璃模式（liquid_glass_widgets 包 premium 管线）
+                    return GlassTabBar.inline(
+                      tabs: labels.map((l) => GlassTab(label: l)).toList(),
+                      selectedIndex: tabIndex,
+                      onTabSelected: (i) => onTabChanged(i),
+                      barHeight: 36,
+                      quality: GlassQuality.premium,
+                      settings: LiquidGlassSettings(
+                        thickness: navGlassThickness.value,
+                        blur: navGlassBlur.value,
+                        refractiveIndex: navGlassRefractiveIndex.value,
+                        glassColor: Colors.white.withOpacity(
+                          navGlassBgAlpha.value,
+                        ),
+                        lightAngle: 2.356, // 135° 左上光源（iOS 26 风格）
+                        lightIntensity: navGlassLight.value,
+                        fresnelStrength: navGlassFresnel.value,
+                        glowIntensity: navGlassGlow.value,
+                        saturation: 1.2,
+                        shadowElevation: 1.0,
+                      ),
+                      indicatorSettings: LiquidGlassSettings(
+                        thickness: 20,
+                        blur: 2,
+                        refractiveIndex: navIndicatorRefractiveIndex.value,
+                        lightAngle: 2.356,
+                        lightIntensity: navIndicatorLight.value,
+                        fresnelStrength: navIndicatorFresnel.value,
+                        glowIntensity: navIndicatorGlow.value,
+                        saturation: 1.2,
+                      ),
+                      interactionBehavior: GlassInteractionBehavior.full,
+                    );
+                  },
                 );
               },
             ),
@@ -315,10 +348,18 @@ class _GlassNavBar extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: avatarUrl!,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Icon(Icons.person, color: fgPrimary.withOpacity(0.85), size: 18),
+                        errorWidget: (_, __, ___) => Icon(
+                          Icons.person,
+                          color: fgPrimary.withOpacity(0.85),
+                          size: 18,
+                        ),
                       ),
                     )
-                  : Icon(anyLoggedIn ? Icons.person : Icons.settings, color: fgPrimary.withOpacity(0.85), size: 18),
+                  : Icon(
+                      anyLoggedIn ? Icons.person : Icons.settings,
+                      color: fgPrimary.withOpacity(0.85),
+                      size: 18,
+                    ),
             ),
           ),
         ],
@@ -356,9 +397,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     return AlertDialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       content: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: ThemeBackground(
@@ -370,363 +409,423 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                   child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('设置', style: TextStyle(color: fgPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
-                SizedBox(height: 16),
-                // 用户信息 / 登录区
-                _buildUserSection(auth),
-                SizedBox(height: 16),
-                Text('音源服务地址', style: TextStyle(color: fgSecondary, fontSize: 13)),
-                SizedBox(height: 8),
-                TextField(
-                  controller: _controller,
-                  style: TextStyle(color: fgPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: 'http://10.0.2.2:41831',
-                    hintStyle: TextStyle(color: fgPrimary.withOpacity(0.35)),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: fgPrimary.withOpacity(0.25)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: fgSecondary),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              '· 模拟器访问电脑：http://10.0.2.2:41831\n'
-              '· 真机访问电脑：http://<电脑局域网IP>:41831\n'
-              '· 服务器部署：http://<服务器公网IP>:41831',
-              style: TextStyle(color: fgTertiary, fontSize: 11, height: 1.6),
-            ),
-            SizedBox(height: 20),
-            // ---- 自定义界面 ----
-            Text('自定义界面', style: TextStyle(color: fgSecondary, fontSize: 13)),
-            SizedBox(height: 8),
-            // 主题皮肤入口（预设一键换肤 + 各页面背景）
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [
-                  const Color(0xFF39C5BB).withOpacity(0.18),
-                  const Color(0xFF1DB954).withOpacity(0.12),
-                ]),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ListTile(
-                leading: const Text('🎨', style: TextStyle(fontSize: 24)),
-                title: Text('主题皮肤', style: TextStyle(color: fgPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
-                subtitle: Text('初音未来等预设 · 每个页面可单独换背景',
-                    style: TextStyle(color: fgTertiary, fontSize: 11)),
-                trailing: Icon(Icons.chevron_right, color: fgPrimary.withOpacity(0.6)),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ThemeSettingsPage()),
-                  );
-                },
-              ),
-            ),
-            SizedBox(height: 12),
-            // 界面风格预设
-            ValueListenableBuilder<UiStyle>(
-              valueListenable: uiStyle,
-              builder: (_, style, __) => Column(
-                children: [
-                  _StyleOption(
-                    title: '液态玻璃',
-                    desc: '封面模糊 + 实时毛玻璃 + 青绿光效',
-                    selected: style == UiStyle.glass,
-                    onTap: () => setUiStyle(UiStyle.glass),
-                  ),
-                  _StyleOption(
-                    title: '极简白色',
-                    desc: '暖白背景 + 黑字，无玻璃无模糊',
-                    selected: style == UiStyle.white,
-                    onTap: () => setUiStyle(UiStyle.white),
-                  ),
-                ],
-              ),
-            ),
-            // UI 高度自定义三级页入口
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                'UI 高度自定义',
-                style: TextStyle(color: fgPrimary, fontSize: 14),
-              ),
-              subtitle: Text(
-                '背景模糊 · 二级页透明 · 播放页模糊 · 动画',
-                style: TextStyle(color: fgTertiary, fontSize: 11),
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
-                color: fgPrimary.withOpacity(0.6),
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const UiCustomizePage()),
-                );
-              },
-            ),
-            SizedBox(height: 8),
-            ValueListenableBuilder<bool>(
-              valueListenable: songCardBlur,
-              builder: (_, blur, __) => SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  '歌曲卡片毛玻璃',
-                  style: TextStyle(color: fgPrimary, fontSize: 14),
-                ),
-                subtitle: Text(
-                  '开启后歌曲卡片带背景模糊；关闭可提升列表滚动性能',
-                  style: TextStyle(color: fgTertiary, fontSize: 11),
-                ),
-                value: blur,
-                activeTrackColor: Color(0xFF1DB954),
-                activeThumbColor: fgPrimary,
-                inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                onChanged: setSongCardBlur,
-              ),
-            ),
-            Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
-            // 播放栏位置（距底部间距，越大越靠上）
-            ValueListenableBuilder<double>(
-              valueListenable: miniPlayerBottomOffset,
-              builder: (_, offset, __) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          '播放栏位置',
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '设置',
+                        style: TextStyle(
+                          color: fgPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      // 用户信息 / 登录区
+                      _buildUserSection(auth),
+                      // 音源服务地址输入框已隐藏（默认值见 config.dart
+                      // kDefaultApiBaseUrl，运行时覆盖值仍从 prefs 读取）。
+                      // 需要临时改地址时把下面这块恢复即可。
+                      // Text(
+                      //   '音源服务地址',
+                      //   style: TextStyle(color: fgSecondary, fontSize: 13),
+                      // ),
+                      // SizedBox(height: 8),
+                      // TextField(
+                      //   controller: _controller,
+                      //   style: TextStyle(color: fgPrimary, fontSize: 14),
+                      //   decoration: InputDecoration(
+                      //     hintText: 'http://10.0.2.2:41831',
+                      //     hintStyle: TextStyle(
+                      //       color: fgPrimary.withOpacity(0.35),
+                      //     ),
+                      //     enabledBorder: OutlineInputBorder(
+                      //       borderRadius: BorderRadius.circular(12),
+                      //       borderSide: BorderSide(
+                      //         color: fgPrimary.withOpacity(0.25),
+                      //       ),
+                      //     ),
+                      //     focusedBorder: OutlineInputBorder(
+                      //       borderRadius: BorderRadius.circular(12),
+                      //       borderSide: BorderSide(color: fgSecondary),
+                      //     ),
+                      //   ),
+                      // ),
+                      // SizedBox(height: 10),
+                      // Text(
+                      //   '· 模拟器访问电脑：http://10.0.2.2:41831\n'
+                      //   '· 真机访问电脑：http://<电脑局域网IP>:41831\n'
+                      //   '· 服务器部署：http://<服务器公网IP>:41831',
+                      //   style: TextStyle(
+                      //     color: fgTertiary,
+                      //     fontSize: 11,
+                      //     height: 1.6,
+                      //   ),
+                      // ),
+                      SizedBox(height: 20),
+                      // ---- 自定义界面 ----
+                      Text(
+                        '自定义界面',
+                        style: TextStyle(color: fgSecondary, fontSize: 13),
+                      ),
+                      SizedBox(height: 8),
+                      // 主题皮肤入口（预设一键换肤 + 各页面背景）
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFF39C5BB).withOpacity(0.18),
+                              const Color(0xFF1DB954).withOpacity(0.12),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: ListTile(
+                          leading: const Text(
+                            '🎨',
+                            style: TextStyle(fontSize: 24),
+                          ),
+                          title: Text(
+                            '主题皮肤',
+                            style: TextStyle(
+                              color: fgPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '初音未来等预设 · 每个页面可单独换背景',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          trailing: Icon(
+                            Icons.chevron_right,
+                            color: fgPrimary.withOpacity(0.6),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ThemeSettingsPage(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      // 界面风格预设
+                      ValueListenableBuilder<UiStyle>(
+                        valueListenable: uiStyle,
+                        builder: (_, style, __) => Column(
+                          children: [
+                            _StyleOption(
+                              title: '液态玻璃',
+                              desc: '封面模糊 + 实时毛玻璃 + 青绿光效',
+                              selected: style == UiStyle.glass,
+                              onTap: () => setUiStyle(UiStyle.glass),
+                            ),
+                            _StyleOption(
+                              title: '极简白色',
+                              desc: '暖白背景 + 黑字，无玻璃无模糊',
+                              selected: style == UiStyle.white,
+                              onTap: () => setUiStyle(UiStyle.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // UI 高度自定义三级页入口
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'UI 高度自定义',
                           style: TextStyle(color: fgPrimary, fontSize: 14),
                         ),
-                        const Spacer(),
-                        Text(
-                          '${offset.round()} px',
-                          style: TextStyle(color: fgTertiary, fontSize: 12),
+                        subtitle: Text(
+                          '背景模糊 · 二级页透明 · 播放页模糊 · 动画',
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
                         ),
-                      ],
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: fgPrimary.withOpacity(0.6),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const UiCustomizePage(),
+                            ),
+                          );
+                        },
+                      ),
+                      SizedBox(height: 8),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: songCardBlur,
+                        builder: (_, blur, __) => SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            '歌曲卡片毛玻璃',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '开启后歌曲卡片带背景模糊；关闭可提升列表滚动性能',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: blur,
+                          activeTrackColor: Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setSongCardBlur,
+                        ),
+                      ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
+                      // 播放栏位置（距底部间距，越大越靠上）
+                      ValueListenableBuilder<double>(
+                        valueListenable: miniPlayerBottomOffset,
+                        builder: (_, offset, __) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '播放栏位置',
+                                    style: TextStyle(
+                                      color: fgPrimary,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${offset.round()} px',
+                                    style: TextStyle(
+                                      color: fgTertiary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '播放栏距屏幕底部的距离，越大越靠上',
+                                style: TextStyle(
+                                  color: fgTertiary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              Slider(
+                                value: offset.clamp(8.0, 64.0),
+                                min: 8,
+                                max: 64,
+                                divisions: 14,
+                                activeColor: const Color(0xFF1DB954),
+                                inactiveColor: fgPrimary.withOpacity(0.15),
+                                onChanged: setMiniPlayerBottomOffset,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // 与其他应用同时播放（音频焦点共存）
+                      ValueListenableBuilder<bool>(
+                        valueListenable: keepPlayingWithOtherApps,
+                        builder: (_, keep, __) => SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            '与其他应用同时播放',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '开启后打开抖音等应用时音乐不暂停，两边同时出声',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: keep,
+                          activeTrackColor: Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: setKeepPlayingWithOtherApps,
+                        ),
+                      ),
+                      // 锁屏歌词（网易云风格全屏歌词悬浮窗）
+                      ValueListenableBuilder<bool>(
+                        valueListenable: lockScreenLyrics,
+                        builder: (_, value, __) => SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            '锁屏歌词',
+                            style: TextStyle(color: fgPrimary, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '锁屏时显示全屏歌词；小米/红米需在系统设置中'
+                            '开启「锁屏显示」权限并将省电策略设为无限制',
+                            style: TextStyle(color: fgTertiary, fontSize: 11),
+                          ),
+                          value: value,
+                          activeTrackColor: Color(0xFF1DB954),
+                          activeThumbColor: fgPrimary,
+                          inactiveTrackColor: fgPrimary.withOpacity(0.15),
+                          onChanged: (v) async {
+                            if (v) {
+                              // 1. 悬浮窗权限（显示歌词）
+                              if (await FlutterScreenOverlay.isPermissionGranted() !=
+                                  true) {
+                                await FlutterScreenOverlay.requestPermission();
+                                if (await FlutterScreenOverlay.isPermissionGranted() !=
+                                    true) {
+                                  return; // 未授权不开启
+                                }
+                              }
+                              // 2. 电池优化白名单（防止锁屏后被系统杀进程，小米/OPPO/vivo 必须）
+                              if (await Permission
+                                      .ignoreBatteryOptimizations
+                                      .isGranted !=
+                                  true) {
+                                unawaited(
+                                  Permission.ignoreBatteryOptimizations
+                                      .request(),
+                                );
+                              }
+                              await setLockScreenLyrics(true);
+                              // 3. 厂商特殊设置指引（自启动/省电策略/锁屏显示），首次开启弹一次
+                              if (!await LockScreenLyricsService.guideShown) {
+                                await LockScreenLyricsService.markGuideShown();
+                                if (context.mounted)
+                                  _showLockPermissionGuide(context);
+                              }
+                            } else {
+                              await setLockScreenLyrics(false);
+                              await LockScreenLyricsService.onDisabled();
+                            }
+                          },
+                        ),
+                      ),
+                      // 锁屏歌词诊断：立即测试 + 权限指引 + 日志（开关开启时显示）
+                      ValueListenableBuilder<bool>(
+                        valueListenable: lockScreenLyrics,
+                        builder: (_, value, __) => value
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton(
+                                    onPressed: () async {
+                                      await LockScreenLyricsService.testShow();
+                                    },
+                                    child: const Text('立即测试'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        _showLockPermissionGuide(context),
+                                    child: const Text('权限指引'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const LockLogPage(),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text('查看日志'),
+                                  ),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      // 多设备同步入口（局域网 WebRTC P2P 跟播）
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          '多设备同步',
+                          style: TextStyle(color: fgPrimary, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          '同一 Wi-Fi 下两台设备跟播同一首歌',
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: fgPrimary.withOpacity(0.6),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SyncPage()),
+                          );
+                        },
+                      ),
+                      // 应用图标入口（预设切换 / 自定义头像 / 桌面快捷方式）
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          '应用图标',
+                          style: TextStyle(color: fgPrimary, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          '预设图标切换 · 上传自定义头像 · 桌面快捷方式',
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
+                        ),
+                        leading: Icon(
+                          Icons.dashboard_customize_outlined,
+                          color: fgPrimary.withOpacity(0.75),
+                          size: 22,
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: fgPrimary.withOpacity(0.6),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const IconSettingsPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      // 开发者设置入口
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          '开发者设置',
+                          style: TextStyle(color: fgPrimary, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          '清理歌曲缓存 · 维护工具',
+                          style: TextStyle(color: fgTertiary, fontSize: 11),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: fgPrimary.withOpacity(0.6),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DeveloperSettingsPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('关闭', style: TextStyle(color: fgSecondary)),
                     ),
-                    Text(
-                      '播放栏距屏幕底部的距离，越大越靠上',
-                      style: TextStyle(color: fgTertiary, fontSize: 11),
-                    ),
-                    Slider(
-                      value: offset.clamp(8.0, 64.0),
-                      min: 8,
-                      max: 64,
-                      divisions: 14,
-                      activeColor: const Color(0xFF1DB954),
-                      inactiveColor: fgPrimary.withOpacity(0.15),
-                      onChanged: setMiniPlayerBottomOffset,
+                    TextButton(
+                      onPressed: () {
+                        final url = _controller.text.trim();
+                        if (url.isNotEmpty) AppConfig.saveApiBaseUrl(url);
+                        Navigator.pop(context);
+                      },
+                      child: Text('保存', style: TextStyle(color: fgPrimary)),
                     ),
                   ],
                 ),
               ),
-            ),
-            // 与其他应用同时播放（音频焦点共存）
-            ValueListenableBuilder<bool>(
-              valueListenable: keepPlayingWithOtherApps,
-              builder: (_, keep, __) => SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  '与其他应用同时播放',
-                  style: TextStyle(color: fgPrimary, fontSize: 14),
-                ),
-                subtitle: Text(
-                  '开启后打开抖音等应用时音乐不暂停，两边同时出声',
-                  style: TextStyle(color: fgTertiary, fontSize: 11),
-                ),
-                value: keep,
-                activeTrackColor: Color(0xFF1DB954),
-                activeThumbColor: fgPrimary,
-                inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                onChanged: setKeepPlayingWithOtherApps,
-              ),
-            ),
-            // 锁屏歌词（网易云风格全屏歌词悬浮窗）
-            ValueListenableBuilder<bool>(
-              valueListenable: lockScreenLyrics,
-              builder: (_, value, __) => SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  '锁屏歌词',
-                  style: TextStyle(color: fgPrimary, fontSize: 14),
-                ),
-                subtitle: Text(
-                  '锁屏时显示全屏歌词；小米/红米需在系统设置中'
-                  '开启「锁屏显示」权限并将省电策略设为无限制',
-                  style: TextStyle(color: fgTertiary, fontSize: 11),
-                ),
-                value: value,
-                activeTrackColor: Color(0xFF1DB954),
-                activeThumbColor: fgPrimary,
-                inactiveTrackColor: fgPrimary.withOpacity(0.15),
-                onChanged: (v) async {
-                  if (v) {
-                    // 1. 悬浮窗权限（显示歌词）
-                    if (await FlutterScreenOverlay.isPermissionGranted() !=
-                        true) {
-                      await FlutterScreenOverlay.requestPermission();
-                      if (await FlutterScreenOverlay.isPermissionGranted() !=
-                          true) {
-                        return; // 未授权不开启
-                      }
-                    }
-                    // 2. 电池优化白名单（防止锁屏后被系统杀进程，小米/OPPO/vivo 必须）
-                    if (await Permission.ignoreBatteryOptimizations.isGranted !=
-                        true) {
-                      unawaited(
-                        Permission.ignoreBatteryOptimizations.request(),
-                      );
-                    }
-                    await setLockScreenLyrics(true);
-                    // 3. 厂商特殊设置指引（自启动/省电策略/锁屏显示），首次开启弹一次
-                    if (!await LockScreenLyricsService.guideShown) {
-                      await LockScreenLyricsService.markGuideShown();
-                      if (context.mounted) _showLockPermissionGuide(context);
-                    }
-                  } else {
-                    await setLockScreenLyrics(false);
-                    await LockScreenLyricsService.onDisabled();
-                  }
-                },
-              ),
-            ),
-            // 锁屏歌词诊断：立即测试 + 权限指引 + 日志（开关开启时显示）
-            ValueListenableBuilder<bool>(
-              valueListenable: lockScreenLyrics,
-              builder: (_, value, __) => value
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () async {
-                            await LockScreenLyricsService.testShow();
-                          },
-                          child: const Text('立即测试'),
-                        ),
-                        TextButton(
-                          onPressed: () => _showLockPermissionGuide(context),
-                          child: const Text('权限指引'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const LockLogPage(),
-                              ),
-                            );
-                          },
-                          child: const Text('查看日志'),
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            // 多设备同步入口（局域网 WebRTC P2P 跟播）
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '多设备同步',
-                style: TextStyle(color: fgPrimary, fontSize: 14),
-              ),
-              subtitle: Text(
-                '同一 Wi-Fi 下两台设备跟播同一首歌',
-                style: TextStyle(color: fgTertiary, fontSize: 11),
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
-                color: fgPrimary.withOpacity(0.6),
-              ),
-              onTap: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const SyncPage()));
-              },
-            ),
-            // 应用图标入口（预设切换 / 自定义头像 / 桌面快捷方式）
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '应用图标',
-                style: TextStyle(color: fgPrimary, fontSize: 14),
-              ),
-              subtitle: Text(
-                '预设图标切换 · 上传自定义头像 · 桌面快捷方式',
-                style: TextStyle(color: fgTertiary, fontSize: 11),
-              ),
-              leading: Icon(
-                Icons.dashboard_customize_outlined,
-                color: fgPrimary.withOpacity(0.75),
-                size: 22,
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
-                color: fgPrimary.withOpacity(0.6),
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const IconSettingsPage()),
-                );
-              },
-            ),
-            // 开发者设置入口
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '开发者设置',
-                style: TextStyle(color: fgPrimary, fontSize: 14),
-              ),
-              subtitle: Text(
-                '清理歌曲缓存 · 维护工具',
-                style: TextStyle(color: fgTertiary, fontSize: 11),
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
-                color: fgPrimary.withOpacity(0.6),
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DeveloperSettingsPage(),
-                  ),
-                );
-              },
-            ),
-          ],
+            ],
+          ),
         ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('关闭', style: TextStyle(color: fgSecondary)),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      final url = _controller.text.trim();
-                      if (url.isNotEmpty) AppConfig.saveApiBaseUrl(url);
-                      Navigator.pop(context);
-                    },
-                    child: Text('保存', style: TextStyle(color: fgPrimary)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
       ),
     );
   }

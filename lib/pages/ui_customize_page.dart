@@ -191,6 +191,7 @@ class UiCustomizePage extends StatelessWidget {
                           },
                         ),
                       ),
+                      Divider(height: 1, color: fgPrimary.withOpacity(0.08)),
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,

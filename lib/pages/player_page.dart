@@ -35,7 +35,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   int _lastLyricIndex = -1;
   bool _userScrolling = false;
 
-  // ---------- 沉浸式歌词布局（仅 glass 档生效） ----------
+  // ---------- 沉浸式歌词布局（全部 UI 风格可用） ----------
   static const String _immersivePrefsKey = 'player_layout_immersive';
   bool _immersive = false;
 
@@ -43,8 +43,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   static const String _lyricScalePrefsKey = 'immersive_lyric_font_scale';
   double _lyricScale = 1.0;
 
-  /// 是否实际处于沉浸式（偏好开启 + 当前为 glass 档）
-  bool get _immersiveActive => _immersive && uiStyle.value == UiStyle.glass;
+  /// 是否实际处于沉浸式（偏好开启即生效，不再限定液态玻璃档）
+  bool get _immersiveActive => _immersive;
 
   /// 进入/退出沉浸式的交叉过渡动画
   late final AnimationController _immerseCtrl = AnimationController(
@@ -91,7 +91,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     setState(() {
       _immersive = saved;
       _lyricScale = savedScale;
-      // 仅 glass 档才直接呈现沉浸式
+      // 沉浸式偏好开启则直接呈现
       if (_immersiveActive) _immerseCtrl.value = 1.0;
     });
   }
@@ -284,24 +284,23 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                             ),
                             actions: [
                               if (song != null) ...[
-                                // 沉浸式歌词切换（仅液态玻璃档显示）
-                                if (uiStyle.value == UiStyle.glass)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 2),
-                                    child: IconButton(
-                                      icon: Icon(
-                                        _immersive
-                                            ? Icons.lyrics
-                                            : Icons.lyrics_outlined,
-                                        color: _immersive
-                                            ? fgPrimary
-                                            : fgPrimary.withOpacity(0.5),
-                                        size: 24,
-                                      ),
-                                      tooltip: '沉浸式歌词',
-                                      onPressed: _toggleImmersive,
+                                // 沉浸式歌词切换（所有 UI 风格可用）
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 2),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      _immersive
+                                          ? Icons.lyrics
+                                          : Icons.lyrics_outlined,
+                                      color: _immersive
+                                          ? fgPrimary
+                                          : fgPrimary.withOpacity(0.5),
+                                      size: 24,
                                     ),
+                                    tooltip: '沉浸式歌词',
+                                    onPressed: _toggleImmersive,
                                   ),
+                                ),
                                 // 音质选择按钮
                                 Padding(
                                   padding: EdgeInsets.only(right: 4),

@@ -8,6 +8,7 @@ import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:provider/provider.dart';
 
 import '../models/song.dart';
@@ -190,57 +191,82 @@ class _Bar extends StatelessWidget {
                     ),
                     child: _BarContent(player: player, song: song),
                   )
-                : ClipRRect(
+                : (plain || !useBlur)
+                ? ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: (plain || !useBlur)
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            color: const Color(0xFF1A1C20),
-                            child: _BarContent(player: player, song: song),
-                          )
-                        : BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                image: barBgPath != null
-                                    ? DecorationImage(
-                                        image: barBgPath.startsWith('assets/')
-                                            ? AssetImage(barBgPath) as ImageProvider
-                                            : FileImage(File(barBgPath)),
-                                        fit: BoxFit.cover,
-                                        alignment: Alignment.center,
-                                        colorFilter: ColorFilter.mode(
-                                          Colors.black.withOpacity(barOverlay),
-                                          BlendMode.srcOver,
-                                        ),
-                                      )
-                                    : null,
-                                gradient: barBgPath == null
-                                    ? LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          fgPrimary.withOpacity(0.20),
-                                          fgPrimary.withOpacity(0.08),
-                                        ],
-                                      )
-                                    : null,
-                                border: Border.all(
-                                  color: fgPrimary.withOpacity(0.28),
-                                  width: 1,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: _BarContent(player: player, song: song),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      color: const Color(0xFF1A1C20),
+                      child: _BarContent(player: player, song: song),
+                    ),
+                  )
+                : barBgPath != null
+                // 用户给「播放胶囊栏」设了自定义背景图：保留原毛玻璃+图片
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: barBgPath.startsWith('assets/')
+                                ? AssetImage(barBgPath) as ImageProvider
+                                : FileImage(File(barBgPath)),
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            colorFilter: ColorFilter.mode(
+                              Colors.black.withOpacity(barOverlay),
+                              BlendMode.srcOver,
                             ),
                           ),
+                          border: Border.all(
+                            color: fgPrimary.withOpacity(0.28),
+                            width: 1,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: _BarContent(player: player, song: song),
+                      ),
+                    ),
+                  )
+                // 液态玻璃胶囊（复刻 linguang 底部播放栏观感）：
+                // AdaptiveGlass 在 Impeller 上走包的 premium 着色器管线
+                // （真实折射+镜面高光+菲涅尔边缘光），Skia 自动降级轻量着色器
+                : AdaptiveGlass(
+                    shape: LiquidRoundedSuperellipse(
+                      borderRadius: 30,
+                      side: BorderSide(
+                        color: Colors.white.withOpacity(0.14),
+                        width: 0.8,
+                      ),
+                    ),
+                    quality: GlassQuality.premium,
+                    settings: const LiquidGlassSettings(
+                      thickness: 14,
+                      blur: 22,
+                      refractiveIndex: 1.32,
+                      chromaticAberration: 0.012,
+                      lightIntensity: 0.6,
+                      fresnelStrength: 1.2,
+                      saturation: 1.4,
+                      glowIntensity: 0.5,
+                      glassColor: Color.fromARGB(28, 255, 255, 255),
+                      shadowElevation: 2,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: _BarContent(player: player, song: song),
+                    ),
                   ),
           );
         },

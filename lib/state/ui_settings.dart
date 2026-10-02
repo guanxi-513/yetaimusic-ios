@@ -143,38 +143,42 @@ final ValueNotifier<double> playerBgOverlayOpacity = ValueNotifier<double>(
 
 // ---------- 导航栏液态玻璃参数（全部可调） ----------
 
-/// 轨道玻璃厚度
-final ValueNotifier<double> navGlassThickness = ValueNotifier<double>(25);
+/// 轨道玻璃厚度（包主题 dark 默认 10）
+final ValueNotifier<double> navGlassThickness = ValueNotifier<double>(10);
 
-/// 轨道模糊
-final ValueNotifier<double> navGlassBlur = ValueNotifier<double>(6);
+/// 轨道模糊（包主题 dark 默认 4）
+final ValueNotifier<double> navGlassBlur = ValueNotifier<double>(4);
 
 /// 轨道折射率
-final ValueNotifier<double> navGlassRefractiveIndex = ValueNotifier<double>(1.3);
+final ValueNotifier<double> navGlassRefractiveIndex = ValueNotifier<double>(
+  1.2,
+);
 
 /// 轨道菲涅尔边缘高光
-final ValueNotifier<double> navGlassFresnel = ValueNotifier<double>(2.5);
+final ValueNotifier<double> navGlassFresnel = ValueNotifier<double>(1.0);
 
 /// 轨道光强
-final ValueNotifier<double> navGlassLight = ValueNotifier<double>(0.8);
+final ValueNotifier<double> navGlassLight = ValueNotifier<double>(0.7);
 
 /// 轨道辉光
-final ValueNotifier<double> navGlassGlow = ValueNotifier<double>(0.3);
+final ValueNotifier<double> navGlassGlow = ValueNotifier<double>(0.75);
 
-/// 轨道背景色不透明度（0~1，默认 0.06）
-final ValueNotifier<double> navGlassBgAlpha = ValueNotifier<double>(0.06);
+/// 轨道背景色不透明度（0~1，包主题 dark 默认 0.08）
+final ValueNotifier<double> navGlassBgAlpha = ValueNotifier<double>(0.08);
 
 /// 选中胶囊折射率
-final ValueNotifier<double> navIndicatorRefractiveIndex = ValueNotifier<double>(1.3);
+final ValueNotifier<double> navIndicatorRefractiveIndex = ValueNotifier<double>(
+  1.2,
+);
 
 /// 选中胶囊菲涅尔
-final ValueNotifier<double> navIndicatorFresnel = ValueNotifier<double>(2.0);
+final ValueNotifier<double> navIndicatorFresnel = ValueNotifier<double>(1.0);
 
 /// 选中胶囊光强
-final ValueNotifier<double> navIndicatorLight = ValueNotifier<double>(1.0);
+final ValueNotifier<double> navIndicatorLight = ValueNotifier<double>(0.7);
 
 /// 选中胶囊辉光
-final ValueNotifier<double> navIndicatorGlow = ValueNotifier<double>(0.6);
+final ValueNotifier<double> navIndicatorGlow = ValueNotifier<double>(0.75);
 
 /// 导航栏是否使用普通毛玻璃（关闭液态玻璃，提升性能）
 final ValueNotifier<bool> navSimpleGlass = ValueNotifier<bool>(false);
@@ -249,19 +253,17 @@ Future<void> loadUiSettings() async {
   playerBgOverlay.value = prefs.getBool('player_bg_overlay') ?? true;
   playerBgOverlayOpacity.value =
       prefs.getDouble('player_bg_overlay_opacity') ?? 0.35;
-  navGlassThickness.value = prefs.getDouble('nav_glass_thickness') ?? 25;
-  navGlassBlur.value = prefs.getDouble('nav_glass_blur') ?? 6;
-  navGlassRefractiveIndex.value =
-      prefs.getDouble('nav_glass_ri') ?? 1.3;
-  navGlassFresnel.value = prefs.getDouble('nav_glass_fresnel') ?? 2.5;
-  navGlassLight.value = prefs.getDouble('nav_glass_light') ?? 0.8;
-  navGlassGlow.value = prefs.getDouble('nav_glass_glow') ?? 0.3;
-  navGlassBgAlpha.value = prefs.getDouble('nav_glass_bg_alpha') ?? 0.06;
-  navIndicatorRefractiveIndex.value =
-      prefs.getDouble('nav_ind_ri') ?? 1.3;
-  navIndicatorFresnel.value = prefs.getDouble('nav_ind_fresnel') ?? 2.0;
-  navIndicatorLight.value = prefs.getDouble('nav_ind_light') ?? 1.0;
-  navIndicatorGlow.value = prefs.getDouble('nav_ind_glow') ?? 0.6;
+  navGlassThickness.value = prefs.getDouble('nav_glass_thickness') ?? 10;
+  navGlassBlur.value = prefs.getDouble('nav_glass_blur') ?? 4;
+  navGlassRefractiveIndex.value = prefs.getDouble('nav_glass_ri') ?? 1.2;
+  navGlassFresnel.value = prefs.getDouble('nav_glass_fresnel') ?? 1.0;
+  navGlassLight.value = prefs.getDouble('nav_glass_light') ?? 0.7;
+  navGlassGlow.value = prefs.getDouble('nav_glass_glow') ?? 0.75;
+  navGlassBgAlpha.value = prefs.getDouble('nav_glass_bg_alpha') ?? 0.08;
+  navIndicatorRefractiveIndex.value = prefs.getDouble('nav_ind_ri') ?? 1.2;
+  navIndicatorFresnel.value = prefs.getDouble('nav_ind_fresnel') ?? 1.0;
+  navIndicatorLight.value = prefs.getDouble('nav_ind_light') ?? 0.7;
+  navIndicatorGlow.value = prefs.getDouble('nav_ind_glow') ?? 0.75;
   navSimpleGlass.value = prefs.getBool('nav_simple_glass') ?? false;
   navFlatStyle.value = prefs.getBool('nav_flat_style') ?? false;
 }
@@ -397,17 +399,17 @@ Future<void> setPlayerBgOverlayOpacity(double value) async {
 
 /// 重置导航栏液态玻璃参数到默认值
 Future<void> resetNavGlassSettings() async {
-  navGlassThickness.value = 25;
-  navGlassBlur.value = 6;
-  navGlassRefractiveIndex.value = 1.3;
-  navGlassFresnel.value = 2.5;
-  navGlassLight.value = 0.8;
-  navGlassGlow.value = 0.3;
-  navGlassBgAlpha.value = 0.06;
-  navIndicatorRefractiveIndex.value = 1.3;
-  navIndicatorFresnel.value = 2.0;
-  navIndicatorLight.value = 1.0;
-  navIndicatorGlow.value = 0.6;
+  navGlassThickness.value = 10;
+  navGlassBlur.value = 4;
+  navGlassRefractiveIndex.value = 1.2;
+  navGlassFresnel.value = 1.0;
+  navGlassLight.value = 0.7;
+  navGlassGlow.value = 0.75;
+  navGlassBgAlpha.value = 0.08;
+  navIndicatorRefractiveIndex.value = 1.2;
+  navIndicatorFresnel.value = 1.0;
+  navIndicatorLight.value = 0.7;
+  navIndicatorGlow.value = 0.75;
   final prefs = await SharedPreferences.getInstance();
   await prefs.remove('nav_glass_thickness');
   await prefs.remove('nav_glass_blur');
@@ -471,7 +473,11 @@ Map<String, dynamic> exportUiSettings() {
 Future<void> importUiSettings(Map<String, dynamic> ui) async {
   T? pick<T>(String key, T Function(dynamic) cast) {
     if (!ui.containsKey(key) || ui[key] == null) return null;
-    try { return cast(ui[key]); } catch (_) { return null; }
+    try {
+      return cast(ui[key]);
+    } catch (_) {
+      return null;
+    }
   }
 
   final styleName = pick<String>('uiStyle', (v) => v as String);
@@ -489,14 +495,17 @@ Future<void> importUiSettings(Map<String, dynamic> ui) async {
     final v = pick<bool>(key, (x) => x as bool);
     if (v != null) n.value = v;
   }
+
   void d(String key, ValueNotifier<double> n) {
     final v = pick<double>(key, (x) => (x as num).toDouble());
     if (v != null) n.value = v;
   }
+
   void i(String key, ValueNotifier<int> n) {
     final v = pick<int>(key, (x) => (x as num).toInt());
     if (v != null) n.value = v;
   }
+
   void s(String key, ValueNotifier<String> n) {
     final v = pick<String>(key, (x) => x as String);
     if (v != null) n.value = v;
