@@ -423,45 +423,43 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                       SizedBox(height: 16),
                       // 用户信息 / 登录区
                       _buildUserSection(auth),
-                      // 音源服务地址输入框已隐藏（默认值见 config.dart
-                      // kDefaultApiBaseUrl，运行时覆盖值仍从 prefs 读取）。
-                      // 需要临时改地址时把下面这块恢复即可。
-                      // Text(
-                      //   '音源服务地址',
-                      //   style: TextStyle(color: fgSecondary, fontSize: 13),
-                      // ),
-                      // SizedBox(height: 8),
-                      // TextField(
-                      //   controller: _controller,
-                      //   style: TextStyle(color: fgPrimary, fontSize: 14),
-                      //   decoration: InputDecoration(
-                      //     hintText: 'http://10.0.2.2:41831',
-                      //     hintStyle: TextStyle(
-                      //       color: fgPrimary.withOpacity(0.35),
-                      //     ),
-                      //     enabledBorder: OutlineInputBorder(
-                      //       borderRadius: BorderRadius.circular(12),
-                      //       borderSide: BorderSide(
-                      //         color: fgPrimary.withOpacity(0.25),
-                      //       ),
-                      //     ),
-                      //     focusedBorder: OutlineInputBorder(
-                      //       borderRadius: BorderRadius.circular(12),
-                      //       borderSide: BorderSide(color: fgSecondary),
-                      //     ),
-                      //   ),
-                      // ),
-                      // SizedBox(height: 10),
-                      // Text(
-                      //   '· 模拟器访问电脑：http://10.0.2.2:41831\n'
-                      //   '· 真机访问电脑：http://<电脑局域网IP>:41831\n'
-                      //   '· 服务器部署：http://<服务器公网IP>:41831',
-                      //   style: TextStyle(
-                      //     color: fgTertiary,
-                      //     fontSize: 11,
-                      //     height: 1.6,
-                      //   ),
-                      // ),
+                      SizedBox(height: 16),
+                      Text(
+                        '音源服务地址',
+                        style: TextStyle(color: fgSecondary, fontSize: 13),
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        controller: _controller,
+                        style: TextStyle(color: fgPrimary, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'http://10.0.2.2:41831',
+                          hintStyle: TextStyle(
+                            color: fgPrimary.withOpacity(0.35),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: fgPrimary.withOpacity(0.25),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: fgSecondary),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        '· 模拟器访问电脑：http://10.0.2.2:41831\n'
+                        '· 真机访问电脑：http://<电脑局域网IP>:41831\n'
+                        '· 服务器部署：http://<服务器公网IP>:41831',
+                        style: TextStyle(
+                          color: fgTertiary,
+                          fontSize: 11,
+                          height: 1.6,
+                        ),
+                      ),
                       SizedBox(height: 20),
                       // ---- 自定义界面 ----
                       Text(
